@@ -16,7 +16,8 @@ package struct StoryCard: HTML {
                     img(
                         .src(image.source.htmlSrc),
                         .alt(image.altText),
-                        .class("story-image")
+                        .class("story-image"),
+                        .custom(name: "loading", value: "lazy")
                     )
 
                     if placed.imageStyle != .thumbnail && (image.caption != nil || image.credit != nil) {

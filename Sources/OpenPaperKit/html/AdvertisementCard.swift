@@ -11,7 +11,8 @@ package struct AdvertisementCard: HTML {
                 img(
                     .src(ad.imageSource.htmlSrc),
                     .alt(ad.altText),
-                    .class("ad-graphic")
+                    .class("ad-graphic"),
+                    .custom(name: "loading", value: "lazy")
                 )
             }
         }
