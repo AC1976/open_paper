@@ -50,21 +50,40 @@ Saving an upload puts it in the inbox. Placing it in an issue is step 5.
 
 ## 3. Upload and staging
 
-- [ ] `POST /editor/uploads`: accept one or more `.md` files plus any images,
-      run step 1, save the result to staging under an upload ID.
-- [ ] If an image block names a `file` that wasn't sent, mark the item
-      "waiting for image" and request the image upload for that ID.
-- [ ] Remove staged uploads that are cancelled or older than 24 hours.
+Done as one item at a time. Run `swift run server`, open http://127.0.0.1:8080/editor
+(database: `open_paper.sqlite`, or the path in `OPEN_PAPER_DB`).
+
+- [x] `POST /editor/uploads`: one `.md` file plus its type (story, agenda point,
+      quote, advertisement). It is parsed, kept in `staged_uploads`, and the
+      editor is sent to the review page. A bad file shows its error on `/editor`.
+- [x] Staged uploads older than 24 hours are removed whenever a new one is staged.
+- [x] Cancel discards the staged upload.
+- [ ] Upload a story together with its image (the image is chosen on the review
+      page for now). If the front matter names a local image that was not sent,
+      mark the item "waiting for image".
+- [ ] Several files in one request (only needed if editors ask for it).
 
 ## 4. Review card
 
-- [ ] `GET /editor/uploads/{id}`: editable fields, warnings, and a
-      live preview using `StoryCard` / agenda / ad components.
-- [ ] Save: run the checks again, then store the item in the inbox (`save`).
-      The issue date is **not** chosen here any more.
-- [ ] Cancel: discard the staged upload.
+- [x] `GET /editor/uploads/{id}`: editable story fields, warnings and a live
+      preview using `StoryCard`. Other kinds get a read-only page.
+- [x] Save (`POST /editor/uploads/{id}`): validates the submitted fields, then
+      stores the item in the inbox and removes the staged upload in one
+      transaction. The issue date is **not** chosen here.
+- [x] "Update preview" re-renders with the edited fields without saving.
+- [x] Cancel: discard the staged upload.
+- [x] Image chosen on the review page is stored with the story (JPEG/PNG/WebP,
+      up to 5 MB, embedded until step 4b).
+- [x] `/editor` lists the inbox (items not in any issue).
+- [ ] When a save fails validation the page shows the *original* upload again
+      with the messages; the editor's edits are lost. Re-render with the
+      submitted values instead.
+- [ ] Edited items are not versioned: saving overwrites. Consider keeping the
+      previous version.
 - [ ] Re-upload with an existing `slug`/`id`: show "update existing" with the
-      changed fields highlighted.
+      changed fields highlighted (the save already updates in place).
+- [x] Agenda points, quotes and ads are editable on the review page too, with
+      the same checks (links must be http/https).
 - [ ] Plain HTML forms first; htmx later.
 
 ## 4b. Image processing (after step 4)
@@ -75,10 +94,38 @@ Saving an upload puts it in the inbox. Placing it in an issue is step 5.
 
 ## 5. Arrange and publish an edition
 
-- [ ] Inbox view: list unplaced items (`inbox()`), pick an issue date, place them.
-- [ ] A page per date: list placed items, set order and lead, preview the full
-      front page, publish.
-- [ ] Public `/` serves the latest published edition.
+- [x] Compose page `/editor/issues/{date}` (`/editor/issues` opens today). Left:
+      the issue date and the inbox. Right: "In this issue", the edition switch
+      and Publish. Tick an inbox item and its title moves to the right (untick
+      to send it back); the change is saved at once by a small script, so the
+      page needs JavaScript.
+- [x] Click an item's title (inbox or issue) to edit it:
+      `/editor/issues/{date}/items/{id}`. Save and Cancel return to that issue.
+      A story's uploaded image is kept unless you choose a new file or tick
+      "Remove the image". Changing a slug to one another story uses is refused.
+- [x] Edition switch per issue: **breaking** (lead across 4 columns),
+      **prominent** (2) or **regular** (1). Saved when chosen, and used for the
+      front page.
+- [x] Publish: the issue becomes the front page (`/`) and the editor is taken
+      there. `/` shows the issue **published most recently** (publishing an
+      older issue again brings it back to the front). An issue with nothing
+      in it cannot be published.
+- [x] Drafts are private: `/issues/{date}` only serves published issues; editors
+      preview any issue at `/editor/issues/{date}/preview`.
+- [x] `PaperDatabase.issue(on:)` loads an issue (items, mode, published time)
+      and `IssueContents` turns it into the metadata and layout plan.
+- [ ] Changes to a published issue (adding, removing, editing items) go live
+      immediately. Consider "publish" taking a snapshot instead.
+- [ ] Unpublish / withdraw an issue.
+- [ ] Set the order by hand (move up / down) and choose the lead story; items
+      appear in the order they were placed, and the layout sorts by priority.
+- [ ] Without JavaScript the compose page cannot move items.
+- [ ] Masthead details (paper title, subtitle, edition label) are fixed in
+      `IssueContents.metadata`; move them to a settings file.
+- [ ] Stored images are embedded in the page as base64. Serve them from an
+      address instead so the front page stays small.
+- [ ] Section pages (`/news`, ...) from the database; the masthead links to
+      them but the server does not serve them yet.
 
 ## 6. Editor login
 
