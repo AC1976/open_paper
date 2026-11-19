@@ -12,7 +12,7 @@ import Yams
 ///     upload.item   // the Story
 ///     upload.markdown // the body as written
 ///     upload.html   // the body as HTML
-func loadUpload<T: Decodable>(_ type: T.Type, from file: URL) throws -> (item: T, markdown: String, html: String) {
+package func loadUpload<T: Decodable>(_ type: T.Type, from file: URL) throws -> (item: T, markdown: String, html: String) {
     let text = try String(contentsOf: file, encoding: .utf8)
         .replacingOccurrences(of: "\r\n", with: "\n")
 
@@ -35,10 +35,10 @@ func loadUpload<T: Decodable>(_ type: T.Type, from file: URL) throws -> (item: T
     return (item, body, html)
 }
 
-enum UploadError: Error, CustomStringConvertible {
+package enum UploadError: Error, CustomStringConvertible {
     case noFrontMatter(String)
 
-    var description: String {
+    package var description: String {
         switch self {
         case .noFrontMatter(let name):
             return "\(name) must start with a '---' line, then the YAML, then another '---' line."

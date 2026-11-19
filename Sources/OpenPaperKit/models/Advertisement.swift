@@ -1,14 +1,14 @@
 import Foundation
 
-struct Advertisement: Codable, Sendable {
-    let id: UUID
-    let sponsorName: String
-    let imageSource: ImageSource   // Supports .blob(data:mimeType:) OR .endpoint(url:)
-    let altText: String
-    let targetURL: String
-    let priority: StoryPriority
+package struct Advertisement: Codable, Sendable {
+    package let id: UUID
+    package let sponsorName: String
+    package let imageSource: ImageSource   // Supports .blob(data:mimeType:) OR .endpoint(url:)
+    package let altText: String
+    package let targetURL: String
+    package let priority: StoryPriority
 
-    init(
+    package init(
         id: UUID = UUID(),
         sponsorName: String,
         imageSource: ImageSource,

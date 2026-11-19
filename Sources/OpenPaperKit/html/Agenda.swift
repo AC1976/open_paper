@@ -1,10 +1,10 @@
 import Foundation
 import Elementary
 
-struct AgendaItemRow: HTML {
-    let point: AgendaPoint
+package struct AgendaItemRow: HTML {
+    package let point: AgendaPoint
 
-    var body: some HTML {
+    package var body: some HTML {
         div(.class("agenda-item")) {
             span(.class("agenda-place")) { point.place }
             h4(.class("agenda-subject")) {
@@ -15,10 +15,10 @@ struct AgendaItemRow: HTML {
     }
 }
 
-struct AgendaSection: HTML {
-    let points: [AgendaPoint]
+package struct AgendaSection: HTML {
+    package let points: [AgendaPoint]
 
-    var body: some HTML {
+    package var body: some HTML {
         let initialPoints = Array(points.prefix(3))
         let overflowPoints = Array(points.dropFirst(3))
 

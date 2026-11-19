@@ -1,22 +1,36 @@
 import Elementary
 import Foundation
 
-struct SectionPage: HTMLDocument {
-    let metadata: EditionMetadata
-    let section: PaperSection
-    let stories: [Story]
-    let agendaPoints: [AgendaPoint]
-    let quotedItems: [QuotedItem]
+package struct SectionPage: HTMLDocument {
+    package let metadata: EditionMetadata
+    package let section: PaperSection
+    package let stories: [Story]
+    package let agendaPoints: [AgendaPoint]
+    package let quotedItems: [QuotedItem]
 
-    var title: String { "\(section.displayTitle) — \(metadata.paperTitle)" }
+    package init(
+        metadata: EditionMetadata,
+        section: PaperSection,
+        stories: [Story],
+        agendaPoints: [AgendaPoint],
+        quotedItems: [QuotedItem]
+    ) {
+        self.metadata = metadata
+        self.section = section
+        self.stories = stories
+        self.agendaPoints = agendaPoints
+        self.quotedItems = quotedItems
+    }
 
-    var head: some HTML {
+    package var title: String { "\(section.displayTitle) — \(metadata.paperTitle)" }
+
+    package var head: some HTML {
         meta(.charset(.utf8))
         meta(.name(.viewport), .content("width=device-width, initial-scale=1.0"))
         style { BroadsheetStyles.css }
     }
 
-    var body: some HTML {
+    package var body: some HTML {
         div(.class("broadsheet")) {
             Masthead(metadata: metadata, activeSection: section)
 

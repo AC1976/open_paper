@@ -1,10 +1,10 @@
 import Elementary
 
-struct Masthead: HTML {
-    let metadata: EditionMetadata
-    let activeSection: PaperSection
+package struct Masthead: HTML {
+    package let metadata: EditionMetadata
+    package let activeSection: PaperSection
 
-    var body: some HTML {
+    package var body: some HTML {
         header(.class("nyt-masthead")) {
             div(.class("masthead-meta")) {
                 span { "VOL. \(metadata.volume) . . . No. \(metadata.issueNumber)" }

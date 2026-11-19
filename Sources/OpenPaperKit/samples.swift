@@ -1,7 +1,7 @@
 import Foundation
 import Elementary
 
-func makeSampleStories() -> [Story] {
+package func makeSampleStories() -> [Story] {
     let now = Date()
 
     return [
@@ -217,7 +217,7 @@ func makeSampleStories() -> [Story] {
    ]
 }
 
-func makeSampleAgendaPoints() -> [AgendaPoint] {
+package func makeSampleAgendaPoints() -> [AgendaPoint] {
     [
         AgendaPoint(
             subject: "European Central Bank Rate Decision",
@@ -246,7 +246,7 @@ func makeSampleAgendaPoints() -> [AgendaPoint] {
     ]
 }
 
-func makeSampleQuotedItems() -> [QuotedItem] {
+package func makeSampleQuotedItems() -> [QuotedItem] {
     [
         QuotedItem(
             quote: "We cannot regulate tomorrow’s energy grid with yesterday’s transmission maps.",
@@ -264,7 +264,7 @@ func makeSampleQuotedItems() -> [QuotedItem] {
 }
 
 
-func makeSampleAdvertisements() -> [Advertisement] {
+package func makeSampleAdvertisements() -> [Advertisement] {
     [
         Advertisement(
             sponsorName: "Vacheron & Co.",

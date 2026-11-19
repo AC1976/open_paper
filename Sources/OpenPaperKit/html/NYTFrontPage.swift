@@ -1,19 +1,24 @@
 import Foundation
 import Elementary
 
-struct NYTFrontPage: HTMLDocument {
-    let metadata: EditionMetadata
-    let plan: FrontPageLayoutPlan
+package struct NYTFrontPage: HTMLDocument {
+    package let metadata: EditionMetadata
+    package let plan: FrontPageLayoutPlan
 
-    var title: String { metadata.paperTitle }
+    package init(metadata: EditionMetadata, plan: FrontPageLayoutPlan) {
+        self.metadata = metadata
+        self.plan = plan
+    }
 
-    var head: some HTML {
+    package var title: String { metadata.paperTitle }
+
+    package var head: some HTML {
         meta(.charset(.utf8))
         meta(.name(.viewport), .content("width=device-width, initial-scale=1.0"))
         style { BroadsheetStyles.css }
     }
 
-    var body: some HTML {
+    package var body: some HTML {
         div(.class("broadsheet mode-\(plan.mode)")) {
             Masthead(metadata: metadata, activeSection: .frontPage)
 

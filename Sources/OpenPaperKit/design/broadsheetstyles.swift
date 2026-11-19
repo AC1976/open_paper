@@ -1,7 +1,7 @@
 import Foundation
 
-enum BroadsheetStyles {
-    static let css: String = """
+package enum BroadsheetStyles {
+    package static let css: String = """
     /* =========================================
     1. Base Variables & Reset
     ========================================= */

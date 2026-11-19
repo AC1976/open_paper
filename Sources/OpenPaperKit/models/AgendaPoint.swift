@@ -1,14 +1,14 @@
 import Foundation
 
-struct AgendaPoint: Codable, Sendable {
-    let id: UUID
-    let subject: String
-    let place: String
-    let link: String
-    let summary: String
-    let eventDate: Date?
+package struct AgendaPoint: Codable, Sendable {
+    package let id: UUID
+    package let subject: String
+    package let place: String
+    package let link: String
+    package let summary: String
+    package let eventDate: Date?
 
-    init(
+    package init(
         id: UUID = UUID(),
         subject: String,
         place: String,

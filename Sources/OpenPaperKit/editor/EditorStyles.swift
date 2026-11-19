@@ -2,8 +2,8 @@ import Foundation
 
 /// Plain styles for the editor pages. Loaded after `BroadsheetStyles`, so the
 /// preview looks exactly like the paper while the form stays simple.
-enum EditorStyles {
-    static let css: String = """
+package enum EditorStyles {
+    package static let css: String = """
     body {
         background: #f3f3f1;
         font-family: var(--font-sans);

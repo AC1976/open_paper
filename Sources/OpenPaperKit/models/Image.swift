@@ -1,11 +1,11 @@
 import Foundation
 import Elementary
 
-enum ImageSource: Codable, Sendable {
+package enum ImageSource: Codable, Sendable {
     case endpoint(url: String)
     case blob(data: Data, mimeType: String) // e.g., "image/jpeg" or "image/webp"
 
-    var htmlSrc: String {
+    package var htmlSrc: String {
         switch self {
         case .endpoint(let url):
             return url
@@ -15,9 +15,9 @@ enum ImageSource: Codable, Sendable {
     }
 }
 
-struct StoryImage: Codable, Sendable {
-    let source: ImageSource
-    let altText: String
-    let caption: String?
-    let credit: String? // e.g., "Jane Doe for The Daily Chronicle"
+package struct StoryImage: Codable, Sendable {
+    package let source: ImageSource
+    package let altText: String
+    package let caption: String?
+    package let credit: String? // e.g., "Jane Doe for The Daily Chronicle"
 }

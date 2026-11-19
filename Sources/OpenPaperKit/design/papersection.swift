@@ -1,6 +1,6 @@
 import Foundation
 
-enum PaperSection: String, CaseIterable, Codable, Sendable {
+package enum PaperSection: String, CaseIterable, Codable, Sendable {
     case frontPage = "front-page"
     case news = "news"
     case background = "background"
@@ -8,7 +8,7 @@ enum PaperSection: String, CaseIterable, Codable, Sendable {
     case agenda = "agenda"
     case quoted = "quoted"
 
-    var displayTitle: String {
+    package var displayTitle: String {
         switch self {
         case .frontPage: return "Front Page"
         case .news: return "News"
@@ -19,20 +19,20 @@ enum PaperSection: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    var href: String {
+    package var href: String {
         self == .frontPage ? "/" : "/sections/\(rawValue)"
     }
 }
 
-struct EditionMetadata: Codable, Sendable {
-    let paperTitle: String
-    let subtitle: String?
-    let volume: Int
-    let issueNumber: Int
-    let editionDate: Date
-    let editionLabel: String
+package struct EditionMetadata: Codable, Sendable {
+    package let paperTitle: String
+    package let subtitle: String?
+    package let volume: Int
+    package let issueNumber: Int
+    package let editionDate: Date
+    package let editionLabel: String
 
-    init(
+    package init(
         paperTitle: String,
         subtitle: String? = nil,
         volume: Int,
@@ -48,7 +48,7 @@ struct EditionMetadata: Codable, Sendable {
         self.editionLabel = editionLabel
     }
 
-    var formattedDate: String {
+    package var formattedDate: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "nl_NL")
         formatter.dateFormat = "EEEE, MMMM d, yyyy"

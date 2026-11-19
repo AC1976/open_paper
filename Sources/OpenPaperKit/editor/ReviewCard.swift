@@ -5,22 +5,29 @@ import Elementary
 /// a preview of how it will look on the front page on the right.
 ///
 /// Field names match the `Story` model, so the submitted form maps straight back to it.
-struct ReviewCard: HTMLDocument {
-    let story: Story
-    let markdown: String   // the body as written
-    let bodyHTML: String   // the body as HTML, for the preview
-    let issueDate: Date
+package struct ReviewCard: HTMLDocument {
+    package let story: Story
+    package let markdown: String   // the body as written
+    package let bodyHTML: String   // the body as HTML, for the preview
+    package let issueDate: Date
 
-    var title: String { "Review: \(story.title)" }
+    package init(story: Story, markdown: String, bodyHTML: String, issueDate: Date) {
+        self.story = story
+        self.markdown = markdown
+        self.bodyHTML = bodyHTML
+        self.issueDate = issueDate
+    }
 
-    var head: some HTML {
+    package var title: String { "Review: \(story.title)" }
+
+    package var head: some HTML {
         meta(.charset(.utf8))
         meta(.name(.viewport), .content("width=device-width, initial-scale=1.0"))
         style { BroadsheetStyles.css }
         style { HTMLRaw(EditorStyles.css) }   // raw: the CSS uses ">" selectors
     }
 
-    var body: some HTML {
+    package var body: some HTML {
         header(.class("editor-bar")) {
             span(.class("editor-brand")) { "Het Grootboek · Editor" }
             a(.href("/editor"), .class("editor-link")) { "← All editions" }

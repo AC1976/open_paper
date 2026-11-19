@@ -1,9 +1,9 @@
 import Elementary
 
-struct AdvertisementCard: HTML {
-    let ad: Advertisement
+package struct AdvertisementCard: HTML {
+    package let ad: Advertisement
 
-    var body: some HTML {
+    package var body: some HTML {
         aside(.class("story-card category-advertisement")) {
             span(.class("ad-label")) { "ADVERTISEMENT" }
 

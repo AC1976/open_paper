@@ -1,35 +1,35 @@
 import Foundation
 import Elementary
 
-enum StoryCategory: String, Codable, Sendable {
+package enum StoryCategory: String, Codable, Sendable {
     case news
     case background
     case opinion
 }
 
-enum StoryPriority: Int, Comparable, Codable, Sendable {
+package enum StoryPriority: Int, Comparable, Codable, Sendable {
     case high = 2
     case normal = 1
 
-    static func < (lhs: StoryPriority, rhs: StoryPriority) -> Bool {
+    package static func < (lhs: StoryPriority, rhs: StoryPriority) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
 }
 
-struct Story: Identifiable, Codable, Sendable {
-    let id: UUID
-    let category: StoryCategory
-    let priority: StoryPriority
-    let title: String
-    let summary: String
-    let extendedSummary: String? // Optional extended summary for in-depth articles
-    let slug: String
-    let publishedAt: Date?
-    let updatedAt: Date?
-    let author: String?
-    let image: StoryImage? // Optional editorial photo or ad graphic
+package struct Story: Identifiable, Codable, Sendable {
+    package let id: UUID
+    package let category: StoryCategory
+    package let priority: StoryPriority
+    package let title: String
+    package let summary: String
+    package let extendedSummary: String? // Optional extended summary for in-depth articles
+    package let slug: String
+    package let publishedAt: Date?
+    package let updatedAt: Date?
+    package let author: String?
+    package let image: StoryImage? // Optional editorial photo or ad graphic
 
-    init(
+    package init(
         id: UUID = UUID(),
         category: StoryCategory,
         priority: StoryPriority,

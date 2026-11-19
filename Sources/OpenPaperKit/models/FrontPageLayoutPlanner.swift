@@ -3,12 +3,12 @@ import Elementary
 
 // EditionMode defines whether the lay out is 4, 2 or 1 column.
 
-enum EditionMode {
+package enum EditionMode {
     case breaking   // Lead spans 4 columns
     case prominent  // Lead spans 2 columns
     case regular    // Lead spans 1 column
 
-    var leadColumnSpan: Int {
+    package var leadColumnSpan: Int {
         switch self {
         case .breaking: return 4
         case .prominent: return 2
@@ -19,29 +19,29 @@ enum EditionMode {
 
 // FrontPageLayout holds the key parameters for any issue of the newspaper. 'Title' is derived from the settings config file.
 
-enum ImageDisplayStyle: String {
+package enum ImageDisplayStyle: String {
     case fullBanner     // Wide 21:9 photo for 4-column breaking news
     case standardLead   // 16:10 photo for prominent/regular lead & high-priority stories
     case thumbnail      // Compact square thumbnail for secondary stories
     case hidden         // Text-only card to preserve newspaper density
 }
 
-struct PlacedStory {
-    let story: Story
-    let columnSpan: Int
-    let imageStyle: ImageDisplayStyle
+package struct PlacedStory {
+    package let story: Story
+    package let columnSpan: Int
+    package let imageStyle: ImageDisplayStyle
 }
 
-struct FrontPageLayoutPlan {
-    let mode: EditionMode
-    let breakingBanner: PlacedStory?
-    let editorialStories: [PlacedStory]
-    let opinionPieces: [Story]
-    let agendaPoints: [AgendaPoint]
-    let quotedItems: [QuotedItem]
-    let advertisements: [Advertisement]
+package struct FrontPageLayoutPlan {
+    package let mode: EditionMode
+    package let breakingBanner: PlacedStory?
+    package let editorialStories: [PlacedStory]
+    package let opinionPieces: [Story]
+    package let agendaPoints: [AgendaPoint]
+    package let quotedItems: [QuotedItem]
+    package let advertisements: [Advertisement]
 
-    init(
+    package init(
         mode: EditionMode,
         stories: [Story],
         agendaPoints: [AgendaPoint] = [],

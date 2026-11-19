@@ -1,13 +1,13 @@
 import Foundation
 
-struct QuotedItem: Codable, Sendable {
-    let id: UUID
-    let quote: String
-    let speaker: String
-    let context: String      // Revealed on click
-    let sourceLink: String   // Link to the original source
+package struct QuotedItem: Codable, Sendable {
+    package let id: UUID
+    package let quote: String
+    package let speaker: String
+    package let context: String      // Revealed on click
+    package let sourceLink: String   // Link to the original source
 
-    init(
+    package init(
         id: UUID = UUID(),
         quote: String,
         speaker: String,

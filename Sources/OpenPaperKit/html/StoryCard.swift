@@ -1,12 +1,12 @@
 import Foundation
 import Elementary
 
-struct StoryCard: HTML {
-    let placed: PlacedStory
+package struct StoryCard: HTML {
+    package let placed: PlacedStory
 
     private var story: Story { placed.story }
 
-    var body: some HTML {
+    package var body: some HTML {
         let priorityClass = "priority-\(story.priority == .high ? "high" : "normal")"
 
         article(.class("story-card category-\(story.category.rawValue) \(priorityClass) span-\(placed.columnSpan) image-\(placed.imageStyle.rawValue)")) {

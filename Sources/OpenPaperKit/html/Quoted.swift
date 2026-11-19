@@ -1,10 +1,10 @@
 import Foundation
 import Elementary
 
-struct QuotedSection: HTML {
-    let items: [QuotedItem]
+package struct QuotedSection: HTML {
+    package let items: [QuotedItem]
 
-    var body: some HTML {
+    package var body: some HTML {
         section(.class("rail-section quoted-section")) {
             h3(.class("rail-header")) { "Quoted" }
 
