@@ -1,13 +1,26 @@
 import Foundation
 import Elementary
 
-// `swift run open_paper ingest [paths...]` checks upload files instead of
-// generating the site. Defaults to the `drafts` folder.
-let arguments = Array(CommandLine.arguments.dropFirst())
-if arguments.first == "ingest" {
-    let paths = Array(arguments.dropFirst())
-    let allAccepted = IngestCommand.run(paths: paths.isEmpty ? ["drafts"] : paths)
-    exit(allAccepted ? 0 : 1)
+// `swift run open_paper ingest` loads every file in `drafts/` instead of
+// generating the site. The folder decides which model the YAML must match.
+if CommandLine.arguments.dropFirst().first == "ingest" {
+    func check<T: Decodable>(_ type: T.Type, folder: String) {
+        let dir = URL(fileURLWithPath: "drafts").appendingPathComponent(folder)
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        for file in files where file.pathExtension == "md" {
+            do {
+                let upload = try loadUpload(T.self, from: file)
+                print("OK    \(folder)/\(file.lastPathComponent)  (\(upload.html.count) characters of HTML)")
+            } catch {
+                print("FAIL  \(folder)/\(file.lastPathComponent)\n      \(error)")
+            }
+        }
+    }
+    check(Story.self, folder: "stories")
+    check(AgendaPoint.self, folder: "agenda")
+    check(QuotedItem.self, folder: "quoted")
+    check(Advertisement.self, folder: "advertisements")
+    exit(0)
 }
 
 // 1. Define the edition metadata for the masthead

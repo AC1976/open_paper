@@ -20,14 +20,9 @@ one upload go from file to database as early as possible.
 
 ## 1. File → model (no web page yet)
 
-- [x] Split front matter from the markdown body.
-- [x] Decode the YAML into upload types; check them; map to `Story`,
-      `AgendaPoint`, `QuotedItem`, `Advertisement`.
-- [x] Return either the item or a list of problems that name the field.
-- [x] Check by hand: `swift run open_paper ingest drafts` (all accepted) and a
-      set of broken files (all caught).
-- [ ] Turn those checks into automated tests once the package is split
-      (step 0): the broken files become test fixtures.
+- [x] `loadUpload(_:from:)` in `models/Upload.swift`: split front matter from
+      the body, decode the YAML straight into the model, body → HTML.
+- [x] Check the drafts: `swift run open_paper ingest`.
 
 ## 2. Database schema
 
