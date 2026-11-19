@@ -7,11 +7,6 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 
-# Generated output (recreated on every run)
-/index.html
-/news.html
-/review.html
-
 # Local databases
 *.sqlite
 *.sqlite-wal

@@ -21,7 +21,7 @@ package struct ReviewCard: HTMLDocument {
         story: Story,
         markdown: String,
         bodyHTML: String,
-        actionBase: String = "/editor/uploads/example",
+        actionBase: String,
         problems: [String] = [],
         heading: String = "Review story",
         backHref: String = "/editor"

@@ -5,20 +5,20 @@
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:open_paper}",
-            "name": "Debug open_paper",
-            "target": "open_paper",
+            "name": "Debug server",
+            "target": "server",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug open_paper"
+            "preLaunchTask": "swift: Build Debug server"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder:open_paper}",
-            "name": "Release open_paper",
-            "target": "open_paper",
+            "name": "Release server",
+            "target": "server",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release open_paper"
+            "preLaunchTask": "swift: Build Release server"
         }
     ]
 }

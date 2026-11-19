@@ -1,5 +1,8 @@
 # drafts — upload format
 
+Example files for the editor. Upload them at http://127.0.0.1:8080/editor (run
+`swift run server`), choosing the type that matches the folder.
+
 One markdown file per item:
 
 ```
@@ -10,7 +13,7 @@ One markdown file per item:
 ```
 
 The YAML is decoded straight into the model, using the same field names as in
-`Sources/open_paper/models/`:
+`Sources/OpenPaperKit/models/`:
 
 | Folder            | Model           |
 |-------------------|-----------------|
@@ -35,9 +38,3 @@ The YAML is decoded straight into the model, using the same field names as in
 
 - Fields that aren't in the model are ignored.
 - The body is only used for stories (the article text).
-
-## Check the drafts
-
-```
-swift run open_paper ingest
-```

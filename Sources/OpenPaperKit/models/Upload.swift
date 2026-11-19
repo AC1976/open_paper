@@ -2,28 +2,22 @@ import Foundation
 import Ink
 import Yams
 
-/// Reads a markdown upload.
-///
-/// The YAML front matter (between the two `---` lines) is decoded straight into
-/// the model you ask for (`Story`, `AgendaPoint`, `QuotedItem` or `Advertisement`).
-/// The text after it is converted from markdown to HTML.
-///
-///     let upload = try loadUpload(Story.self, from: fileURL)
-///     upload.item   // the Story
-///     upload.markdown // the body as written
-///     upload.html   // the body as HTML
-package func loadUpload<T: Decodable>(_ type: T.Type, from file: URL) throws -> (item: T, markdown: String, html: String) {
-    let text = try String(contentsOf: file, encoding: .utf8)
-    return try parseUpload(type, text: text, name: file.lastPathComponent)
-}
-
 /// Markdown to HTML, the same conversion uploads use.
 package func markdownToHTML(_ markdown: String) -> String {
     MarkdownParser().html(from: markdown)
 }
 
-/// Same as `loadUpload`, for text that is already in memory (a web upload).
-/// `name` is only used in error messages.
+/// Reads a markdown upload.
+///
+/// The YAML front matter (between the two `---` lines) is decoded straight into
+/// the model you ask for (`Story`, `AgendaPoint`, `QuotedItem` or `Advertisement`).
+/// The text after it is converted from markdown to HTML. `name` is only used in
+/// error messages.
+///
+///     let upload = try parseUpload(Story.self, text: fileText, name: "story.md")
+///     upload.item     // the Story
+///     upload.markdown // the body as written
+///     upload.html     // the body as HTML
 package func parseUpload<T: Decodable>(_ type: T.Type, text rawText: String, name: String) throws -> (item: T, markdown: String, html: String) {
     let text = rawText.replacingOccurrences(of: "\r\n", with: "\n")
 

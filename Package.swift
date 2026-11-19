@@ -32,12 +32,7 @@ let package = Package(
             ],
             exclude: ["design/broadsheet.css"]
         ),
-        // Static generator and `ingest` check (`swift run open_paper`).
-        .executableTarget(
-            name: "open_paper",
-            dependencies: ["OpenPaperKit", .product(name: "Elementary", package: "elementary")]
-        ),
-        // Editor web server (`swift run server`).
+        // The paper and its editor (`swift run server`).
         .executableTarget(
             name: "server",
             dependencies: [
