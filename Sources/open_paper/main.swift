@@ -73,3 +73,21 @@ try newsHTML.write(
     encoding: .utf8
 )
 print("Exported news section to news.html")
+
+// 6. Mock-up of the editor's review card, from the news draft, to review.html
+let draft = try loadUpload(
+    Story.self,
+    from: URL(fileURLWithPath: "drafts/stories/news-global-summit-historic-accord-clean-energy-grid.md")
+)
+let reviewCard = ReviewCard(
+    story: draft.item,
+    markdown: draft.markdown,
+    bodyHTML: draft.html,
+    issueDate: draft.item.publishedAt ?? Date()
+)
+try reviewCard.render().write(
+    to: URL(fileURLWithPath: "review.html"),
+    atomically: true,
+    encoding: .utf8
+)
+print("Exported editor review card to review.html")

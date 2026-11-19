@@ -10,8 +10,9 @@ import Yams
 ///
 ///     let upload = try loadUpload(Story.self, from: fileURL)
 ///     upload.item   // the Story
+///     upload.markdown // the body as written
 ///     upload.html   // the body as HTML
-func loadUpload<T: Decodable>(_ type: T.Type, from file: URL) throws -> (item: T, html: String) {
+func loadUpload<T: Decodable>(_ type: T.Type, from file: URL) throws -> (item: T, markdown: String, html: String) {
     let text = try String(contentsOf: file, encoding: .utf8)
         .replacingOccurrences(of: "\r\n", with: "\n")
 
@@ -31,7 +32,7 @@ func loadUpload<T: Decodable>(_ type: T.Type, from file: URL) throws -> (item: T
 
     let item = try YAMLDecoder().decode(T.self, from: yaml)
     let html = MarkdownParser().html(from: body)
-    return (item, html)
+    return (item, body, html)
 }
 
 enum UploadError: Error, CustomStringConvertible {
