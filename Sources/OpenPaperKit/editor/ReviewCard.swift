@@ -9,13 +9,30 @@ package struct ReviewCard: HTMLDocument {
     package let story: Story
     package let markdown: String   // the body as written
     package let bodyHTML: String   // the body as HTML, for the preview
-    package let issueDate: Date
+    /// The form posts here; `/preview` and `/cancel` are appended for the other buttons.
+    package let actionBase: String
+    /// Messages to show above the form (a failed save).
+    package let problems: [String]
+    package let heading: String
+    /// Where the "back" link in the top bar goes.
+    package let backHref: String
 
-    package init(story: Story, markdown: String, bodyHTML: String, issueDate: Date) {
+    package init(
+        story: Story,
+        markdown: String,
+        bodyHTML: String,
+        actionBase: String = "/editor/uploads/example",
+        problems: [String] = [],
+        heading: String = "Review story",
+        backHref: String = "/editor"
+    ) {
+        self.heading = heading
+        self.backHref = backHref
         self.story = story
         self.markdown = markdown
         self.bodyHTML = bodyHTML
-        self.issueDate = issueDate
+        self.actionBase = actionBase
+        self.problems = problems
     }
 
     package var title: String { "Review: \(story.title)" }
@@ -30,20 +47,26 @@ package struct ReviewCard: HTMLDocument {
     package var body: some HTML {
         header(.class("editor-bar")) {
             span(.class("editor-brand")) { "Het Grootboek · Editor" }
-            a(.href("/editor"), .class("editor-link")) { "← All editions" }
+            a(.href(backHref), .class("editor-link")) { "← Back" }
         }
 
         main(.class("review")) {
-            form(.method(.post), .action("/editor/stories"), .enctype(.multipartFormData), .class("review-form")) {
+            form(.method(.post), .action(actionBase), .enctype(.multipartFormData), .class("review-form")) {
                 input(.type(.hidden), .name("id"), .value(story.id.uuidString))
 
-                h1(.class("review-title")) { "Review story" }
+                h1(.class("review-title")) { heading }
+
+                if !problems.isEmpty {
+                    div(.class("problems")) {
+                        p { "The story was not saved:" }
+                        ul {
+                            for problem in problems { li { problem } }
+                        }
+                    }
+                }
 
                 fieldset {
-                    legend { "Placement" }
-                    field("issueDate", "Appears in issue of") {
-                        input(.type(.date), .id("issueDate"), .name("issueDate"), .value(Self.day(issueDate)), .required)
-                    }
+                    legend { "Classification" }
                     div(.class("field-row")) {
                         field("category", "Category") {
                             select(.id("category"), .name("category")) {
@@ -76,11 +99,11 @@ package struct ReviewCard: HTMLDocument {
                     div(.class("field-row")) {
                         field("publishedAt", "Published") {
                             input(.type(.datetimeLocal), .id("publishedAt"), .name("publishedAt"),
-                                  .value(story.publishedAt.map(Self.dateTime) ?? ""))
+                                  .value(story.publishedAt.map(EditorDates.dateTime) ?? ""))
                         }
                         field("updatedAt", "Updated") {
                             input(.type(.datetimeLocal), .id("updatedAt"), .name("updatedAt"),
-                                  .value(story.updatedAt.map(Self.dateTime) ?? ""))
+                                  .value(story.updatedAt.map(EditorDates.dateTime) ?? ""))
                         }
                     }
                     field("summary", "Summary") {
@@ -103,7 +126,18 @@ package struct ReviewCard: HTMLDocument {
                             ". Choose the file to upload it with the story."
                         }
                     }
-                    field("imageFile", "Image file") {
+                    if case .blob(let data, _)? = story.image?.source {
+                        p(.class("notice")) {
+                            "This story has an uploaded image (\(max(data.count / 1024, 1)) KB). Choose a file to replace it, or tick the box to remove it."
+                        }
+                        div(.class("field")) {
+                            label(.for("removeImage")) {
+                                input(.type(.checkbox), .id("removeImage"), .name("removeImage"), .value("yes"))
+                                " Remove the image"
+                            }
+                        }
+                    }
+                    field("imageFile", "Image file", hint: "JPEG, PNG or WebP, up to 5 MB. Choose the file again after \"Update preview\".") {
                         input(.type(.file), .id("imageFile"), .name("imageFile"), .accept("image/jpeg,image/png,image/webp"))
                     }
                     field("imageURL", "Or image address") {
@@ -123,27 +157,19 @@ package struct ReviewCard: HTMLDocument {
 
                 div(.class("actions")) {
                     button(.type(.submit), .class("button primary")) { "Save" }
-                    button(.type(.submit), .class("button"), .custom(name: "formaction", value: "/editor/stories/preview")) {
+                    button(.type(.submit), .class("button"), .custom(name: "formaction", value: actionBase + "/preview"),
+                           .custom(name: "formnovalidate", value: "")) {
                         "Update preview"
                     }
-                    a(.href("/editor"), .class("button quiet")) { "Cancel" }
+                    button(.type(.submit), .class("button quiet"), .custom(name: "formaction", value: actionBase + "/cancel"),
+                           .custom(name: "formnovalidate", value: "")) {
+                        "Cancel"
+                    }
                 }
             }
 
             aside(.class("review-preview")) {
-                h2(.class("preview-label")) { "Front page" }
-                div(.class("preview-frame broadsheet mode-prominent")) {
-                    StoryCard(placed: PlacedStory(story: story, columnSpan: 2, imageStyle: .standardLead))
-                }
-
-                h2(.class("preview-label")) { "Article page" }
-                div(.class("preview-frame article-body")) {
-                    h1(.class("headline")) { story.title }
-                    if let author = story.author {
-                        p(.class("byline")) { "By \(author)" }
-                    }
-                    HTMLRaw(bodyHTML)
-                }
+                StoryPreview(story: story, bodyHTML: bodyHTML)
             }
         }
     }
@@ -173,23 +199,5 @@ package struct ReviewCard: HTMLDocument {
     private static func localPath(of image: StoryImage?) -> String? {
         guard let url = url(of: image), !url.hasPrefix("http://"), !url.hasPrefix("https://") else { return nil }
         return url
-    }
-
-    private static let paperTimeZone = TimeZone(identifier: "Europe/Amsterdam") ?? .current
-
-    private static func day(_ date: Date) -> String {
-        format(date, "yyyy-MM-dd")
-    }
-
-    private static func dateTime(_ date: Date) -> String {
-        format(date, "yyyy-MM-dd'T'HH:mm")
-    }
-
-    private static func format(_ date: Date, _ pattern: String) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = paperTimeZone
-        formatter.dateFormat = pattern
-        return formatter.string(from: date)
     }
 }

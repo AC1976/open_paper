@@ -4,28 +4,13 @@ import Hummingbird
 import HummingbirdElementary
 import OpenPaperKit
 
-// Smoke test for step 0: a bare Hummingbird server that renders the sample
-// front page with the shared library. Real editor routes come later.
+// The paper (`/`) and the editor (`/editor`), both backed by the SQLite database.
 let router = Router()
 
-router.get("/") { _, _ -> HTMLResponse in
-    let edition = EditionMetadata(
-        paperTitle: "Het Grootboek",
-        subtitle: "Met het Oog op de Rekening",
-        volume: 1,
-        issueNumber: 1,
-        editionDate: Date(),
-        editionLabel: "Namiddag Editie"
-    )
-    let plan = FrontPageLayoutPlan(
-        mode: .prominent,
-        stories: makeSampleStories(),
-        agendaPoints: makeSampleAgendaPoints(),
-        quotedItems: makeSampleQuotedItems(),
-        advertisements: makeSampleAdvertisements()
-    )
-    return HTMLResponse { NYTFrontPage(metadata: edition, plan: plan) }
-}
+let databasePath = ProcessInfo.processInfo.environment["OPEN_PAPER_DB"] ?? "open_paper.sqlite"
+let database = try PaperDatabase(path: databasePath)
+addPublicRoutes(to: router, database: database)
+addEditorRoutes(to: router, database: database)
 
 let app = Application(
     router: router,

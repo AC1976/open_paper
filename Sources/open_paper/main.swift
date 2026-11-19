@@ -97,8 +97,7 @@ let draft = try loadUpload(
 let reviewCard = ReviewCard(
     story: draft.item,
     markdown: draft.markdown,
-    bodyHTML: draft.html,
-    issueDate: draft.item.publishedAt ?? Date()
+    bodyHTML: draft.html
 )
 try reviewCard.render().write(
     to: URL(fileURLWithPath: "review.html"),

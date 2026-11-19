@@ -19,6 +19,7 @@ package enum EditorStyles {
         color: #fff;
     }
     .editor-brand { font-weight: 700; letter-spacing: 0.02em; }
+    .editor-nav { display: flex; gap: 1.25rem; }
     .editor-link { color: #ddd; text-decoration: none; font-size: 0.9rem; }
     .editor-link:hover { color: #fff; }
 
@@ -33,6 +34,7 @@ package enum EditorStyles {
         align-items: start;
     }
     .review > * { min-width: 0; }
+    .review.single { grid-template-columns: minmax(340px, 640px); justify-content: center; }
     .review-title { font-size: 1.4rem; margin-bottom: 1rem; }
 
     /* Form */
@@ -130,6 +132,64 @@ package enum EditorStyles {
         color: var(--ink-secondary);
         margin: 0.75rem 0;
     }
+
+    /* Inbox page */
+    .editor-main { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+    .editor-main h1 { font-size: 1.4rem; margin-bottom: 1rem; }
+    .editor-main h2 { font-size: 1.05rem; margin: 2rem 0 0.6rem; }
+    .upload-form {
+        display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end;
+        background: #fff; border: 1px solid var(--border-light); border-radius: 6px;
+        padding: 1rem; margin-bottom: 1rem;
+    }
+    .upload-form .field { margin-bottom: 0; }
+    .upload-form .field.grow { flex: 1 1 260px; }
+    .item-table {
+        width: 100%; border-collapse: collapse; background: #fff;
+        border: 1px solid var(--border-light); font-size: 0.9rem;
+    }
+    .item-table th, .item-table td { text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border-light); }
+    .item-table th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-secondary); }
+    .empty { color: var(--ink-muted); font-size: 0.9rem; }
+    .problems {
+        font-size: 0.9rem; background: #fdecea; border-left: 3px solid #c0392b;
+        padding: 0.6rem 0.9rem; margin-bottom: 1rem;
+    }
+    .problems ul { padding-left: 1.2rem; margin-top: 0.3rem; }
+    .item-fields { background: #fff; border: 1px solid var(--border-light); border-radius: 6px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .item-fields dt { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-secondary); margin-top: 0.8rem; }
+    .item-fields dt:first-child { margin-top: 0; }
+    .item-fields dd { margin: 0.15rem 0 0; font-size: 0.95rem; overflow-wrap: anywhere; }
+
+    /* Compose-an-issue page */
+    .review-heading { grid-column: 1 / -1; margin-bottom: 0; }
+    .pick-list { list-style: none; padding: 0; margin: 0 0 0.5rem; }
+    .pick-list li { display: flex; gap: 0.6rem; align-items: baseline; padding: 0.15rem 0; border-bottom: 1px solid var(--border-light); }
+    .pick-list li:last-child { border-bottom: none; }
+    .pick-box { flex: none; padding: 0.4rem 0.25rem; cursor: pointer; }
+    .pick-title {
+        flex: 1; min-width: 0; font-size: 0.9rem; padding: 0.4rem 0;
+        color: #1d4f91; text-decoration: underline; text-decoration-color: #b9c9de; text-underline-offset: 3px;
+    }
+    .pick-title:hover { text-decoration-color: currentColor; }
+    .pick-kind {
+        flex: none; font-size: 0.7rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-secondary);
+    }
+    .list-hint { margin: 0 0 0.5rem; }
+    .issue-picker { display: flex; gap: 0.75rem; align-items: end; }
+    .issue-picker .field { flex: 1; margin-bottom: 0; }
+    .mode-options { display: grid; gap: 0.5rem; }
+    .mode-option {
+        display: flex; gap: 0.7rem; align-items: flex-start; cursor: pointer;
+        border: 1px solid var(--border-light); border-radius: 4px; padding: 0.6rem 0.75rem;
+    }
+    .mode-option:has(input:checked) { border-color: #2b6cb0; background: #f2f7fc; }
+    .mode-option input { margin-top: 0.2rem; }
+    .mode-option span { display: flex; flex-direction: column; gap: 0.1rem; }
+    .mode-option small { color: var(--ink-muted); font-size: 0.78rem; }
+    .status { font-size: 0.85rem; color: var(--ink-secondary); margin: 0 0 0.9rem; }
+    [hidden] { display: none !important; }
 
     @media (max-width: 900px) {
         .review { grid-template-columns: 1fr; }
