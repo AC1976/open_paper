@@ -24,12 +24,24 @@ one upload go from file to database as early as possible.
       the body, decode the YAML straight into the model, body → HTML.
 - [x] Check the drafts: `swift run open_paper ingest`.
 
-## 2. Database schema
+## 2. Save to the database
 
-- [ ] SQLite tables: content (stories, agenda points, quotes, ads), `editions`,
-      `edition_items` (placements), `staged_uploads`, `images`.
-- [ ] Migrations from the start.
+Once `loadUpload` returns a model and the editor confirms the card, save it.
+
 - [ ] Pick the SQLite library based on what worked in step 0.
+- [ ] Tables, with migrations from the start:
+  - one table per model (stories, agenda points, quotes, ads); the model's
+    `id` is the row key;
+  - stories get one extra `body` column with the **markdown** (render to HTML
+    when the page is shown; optionally store the HTML too);
+  - `Story.image` / `Advertisement.imageSource` saved as one JSON column;
+  - `edition_items`: issue date + item id (+ position later), so one item can
+    appear in more than one edition;
+  - `staged_uploads` and `images` for steps 3–4.
+- [ ] Save in **one transaction**, so it's all saved or nothing is:
+  1. save the image file (if any) and point `source` at it;
+  2. insert the model row (+ `body`);
+  3. insert the (issue date, item id) row.
 
 ## 3. Upload and staging
 
