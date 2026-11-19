@@ -1,6 +1,8 @@
 import Elementary
 import Foundation
 
+/// A section archive. Items are shown in the order given, so pass them newest
+/// first (`PaperDatabase.publishedItems()` does).
 package struct SectionPage: HTMLDocument {
     package let metadata: EditionMetadata
     package let section: PaperSection
@@ -41,11 +43,7 @@ package struct SectionPage: HTMLDocument {
             main(.class("section-archive-list")) {
                 switch section {
                 case .news, .background, .opinion:
-                    let filtered = stories
-                        .filter { $0.category.rawValue == section.rawValue }
-                        .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
-
-                    for story in filtered {
+                    for story in stories where story.category.rawValue == section.rawValue {
                         StoryCard(placed: PlacedStory(
                             story: story,
                             columnSpan: 1,
@@ -54,10 +52,7 @@ package struct SectionPage: HTMLDocument {
                     }
 
                 case .agenda:
-                    let sortedAgenda = agendaPoints.sorted {
-                        ($0.eventDate ?? .distantPast) > ($1.eventDate ?? .distantPast)
-                    }
-                    for point in sortedAgenda {
+                    for point in agendaPoints {
                         AgendaItemRow(point: point)
                     }
 
