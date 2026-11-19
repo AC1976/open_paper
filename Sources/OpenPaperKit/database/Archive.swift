@@ -38,4 +38,24 @@ extension PaperDatabase {
             )
         }
     }
+
+    /// A story that has appeared in at least one published issue, with its
+    /// markdown body. Nil for unknown slugs, drafts and inbox items, so a
+    /// story cannot be read before it is published.
+    package func publishedStory(slug: String) throws -> (story: Story, markdown: String)? {
+        try queue.read { db in
+            guard let story = try Story.fetchOne(db, sql: """
+                SELECT s.* FROM stories s
+                WHERE s.slug = ?
+                  AND EXISTS (
+                    SELECT 1 FROM edition_items e
+                    JOIN issues i ON i.issueDate = e.issueDate
+                    WHERE e.itemId = s.id AND i.publishedAt IS NOT NULL
+                  )
+                """, arguments: [slug])
+            else { return nil }
+            let body = try String.fetchOne(db, sql: "SELECT body FROM stories WHERE id = ?", arguments: [story.id.uuidString]) ?? ""
+            return (story, body)
+        }
+    }
 }

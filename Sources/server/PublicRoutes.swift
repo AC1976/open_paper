@@ -10,8 +10,10 @@ import OpenPaperKit
 ///     GET /issues/{date}    a published issue, e.g. /issues/2026-11-20
 ///     GET /sections/{name}  everything published in a section, newest first:
 ///                           news, background, opinion, agenda or quoted
+///     GET /articles/{slug}  a published story
 func addPublicRoutes(to router: Router<BasicRequestContext>, database: PaperDatabase) {
     addSectionRoutes(to: router, database: database)
+    addArticleRoutes(to: router, database: database)
 
     router.get("/") { request, context -> Response in
         guard let date = try database.latestPublishedIssueDate() else {
@@ -30,6 +32,29 @@ func addPublicRoutes(to router: Router<BasicRequestContext>, database: PaperData
             throw HTTPError(.notFound, message: "There is no issue with that date.")
         }
         return frontPage(issue, request, context)
+    }
+}
+
+/// The page behind every headline: `/articles/{slug}`. Only stories that have
+/// appeared in a published issue can be read.
+private func addArticleRoutes(to router: Router<BasicRequestContext>, database: PaperDatabase) {
+    router.get("/articles/:slug") { request, context -> Response in
+        let slug = try context.parameters.require("slug")
+        guard let (story, markdown) = try database.publishedStory(slug: slug),
+              let latest = try database.latestPublishedIssueDate()
+        else {
+            throw HTTPError(.notFound, message: "There is no article with that address.")
+        }
+        let related = try database.publishedItems().stories
+            .filter { $0.category == story.category && $0.id != story.id }
+            .prefix(3)
+        let page = ArticlePage(
+            metadata: try database.issue(on: latest).metadata,
+            story: story,
+            bodyHTML: markdownToHTML(markdown),
+            related: Array(related)
+        )
+        return HTMLResponse { page }.response(from: request, context: context)
     }
 }
 
