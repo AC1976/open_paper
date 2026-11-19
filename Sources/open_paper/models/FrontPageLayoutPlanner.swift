@@ -19,7 +19,7 @@ enum EditionMode {
 
 // FrontPageLayout holds the key parameters for any issue of the newspaper. 'Title' is derived from the settings config file.
 
-enum ImageDisplayStyle: String {
+enum ImageDisplayStyle: String, CaseIterable {
     case fullBanner     // Wide 21:9 photo for 4-column breaking news
     case standardLead   // 16:10 photo for prominent/regular lead & high-priority stories
     case thumbnail      // Compact square thumbnail for secondary stories

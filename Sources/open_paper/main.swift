@@ -1,6 +1,15 @@
 import Foundation
 import Elementary
 
+// `swift run open_paper ingest [paths...]` checks upload files instead of
+// generating the site. Defaults to the `drafts` folder.
+let arguments = Array(CommandLine.arguments.dropFirst())
+if arguments.first == "ingest" {
+    let paths = Array(arguments.dropFirst())
+    let allAccepted = IngestCommand.run(paths: paths.isEmpty ? ["drafts"] : paths)
+    exit(allAccepted ? 0 : 1)
+}
+
 // 1. Define the edition metadata for the masthead
 let edition = EditionMetadata(
     paperTitle: "Het Grootboek",

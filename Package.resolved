@@ -1,5 +1,5 @@
 {
-  "originHash" : "76f4786f57d05c9e2c371f3487963550582593036c7c46207d5df124d64c03c0",
+  "originHash" : "f0a100fbca3e9c7d02ecc6d6e8af3e1899d0634054e24a2a5a20d758316dfe9b",
   "pins" : [
     {
       "identity" : "elementary",
@@ -8,6 +8,24 @@
       "state" : {
         "revision" : "71521f6f710b523d572293b90646ea12befa5b9f",
         "version" : "0.9.0"
+      }
+    },
+    {
+      "identity" : "ink",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/JohnSundell/Ink.git",
+      "state" : {
+        "revision" : "bcc9f219900a62c4210e6db726035d7f03ae757b",
+        "version" : "0.6.0"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams.git",
+      "state" : {
+        "revision" : "3d6871d5b4a5cd519adf233fbb576e0a2af71c17",
+        "version" : "5.4.0"
       }
     }
   ],

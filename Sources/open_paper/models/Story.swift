@@ -1,7 +1,7 @@
 import Foundation
 import Elementary
 
-enum StoryCategory: String, Codable, Sendable {
+enum StoryCategory: String, Codable, Sendable, CaseIterable {
     case news
     case background
     case opinion
@@ -28,6 +28,7 @@ struct Story: Identifiable, Codable, Sendable {
     let updatedAt: Date?
     let author: String?
     let image: StoryImage? // Optional editorial photo or ad graphic
+    let body: String?      // Full article text in markdown (from the upload's body)
 
     init(
         id: UUID = UUID(),
@@ -40,7 +41,8 @@ struct Story: Identifiable, Codable, Sendable {
         publishedAt: Date? = nil,
         updatedAt: Date? = nil,
         author: String? = nil,
-        image: StoryImage? = nil
+        image: StoryImage? = nil,
+        body: String? = nil
     ) {
         self.id = id
         self.category = category
@@ -53,5 +55,6 @@ struct Story: Identifiable, Codable, Sendable {
         self.updatedAt = updatedAt
         self.author = author
         self.image = image
+        self.body = body
     }
 }
