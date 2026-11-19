@@ -3,10 +3,26 @@ import Elementary
 
 // EditionMode defines whether the lay out is 4, 2 or 1 column.
 
-package enum EditionMode {
+package enum EditionMode: String, CaseIterable, Sendable {
     case breaking   // Lead spans 4 columns
     case prominent  // Lead spans 2 columns
     case regular    // Lead spans 1 column
+
+    package var label: String {
+        switch self {
+        case .breaking: "Breaking"
+        case .prominent: "Prominent"
+        case .regular: "Regular"
+        }
+    }
+
+    package var explanation: String {
+        switch self {
+        case .breaking: "The lead story runs across all four columns."
+        case .prominent: "The lead story runs across two columns."
+        case .regular: "The lead story stays in one column."
+        }
+    }
 
     package var leadColumnSpan: Int {
         switch self {
