@@ -27,7 +27,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Elementary", package: "elementary"),
                 .product(name: "Yams", package: "Yams"),
-                .product(name: "Ink", package: "Ink")
+                .product(name: "Ink", package: "Ink"),
+                .product(name: "GRDB", package: "GRDB.swift")
             ],
             exclude: ["design/broadsheet.css"]
         ),
@@ -43,9 +44,12 @@ let package = Package(
                 "OpenPaperKit",
                 .product(name: "Elementary", package: "elementary"),
                 .product(name: "Hummingbird", package: "hummingbird"),
-                .product(name: "HummingbirdElementary", package: "hummingbird-elementary"),
-                .product(name: "GRDB", package: "GRDB.swift")
+                .product(name: "HummingbirdElementary", package: "hummingbird-elementary")
             ]
+        ),
+        .testTarget(
+            name: "OpenPaperKitTests",
+            dependencies: ["OpenPaperKit", .product(name: "GRDB", package: "GRDB.swift")]
         )
     ]
 )

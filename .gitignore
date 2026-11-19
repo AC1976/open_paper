@@ -11,3 +11,8 @@ DerivedData/
 /index.html
 /news.html
 /review.html
+
+# Local databases
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

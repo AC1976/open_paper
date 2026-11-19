@@ -4,23 +4,37 @@ import Elementary
 
 // `swift run open_paper ingest` loads every file in `drafts/` instead of
 // generating the site. The folder decides which model the YAML must match.
-if CommandLine.arguments.dropFirst().first == "ingest" {
-    func check<T: Decodable>(_ type: T.Type, folder: String) {
+// Add `--save` to also put each item in the inbox of `open_paper.sqlite`.
+let arguments = Array(CommandLine.arguments.dropFirst())
+if arguments.first == "ingest" {
+    let database = arguments.contains("--save") ? try PaperDatabase(path: "open_paper.sqlite") : nil
+
+    func check<T: Decodable>(_ type: T.Type, folder: String, save: ((T, String) throws -> SaveOutcome)? = nil) {
         let dir = URL(fileURLWithPath: "drafts").appendingPathComponent(folder)
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
-        for file in files where file.pathExtension == "md" {
+        for file in files.sorted(by: { $0.path < $1.path }) where file.pathExtension == "md" {
             do {
                 let upload = try loadUpload(T.self, from: file)
-                print("OK    \(folder)/\(file.lastPathComponent)  (\(upload.html.count) characters of HTML)")
+                var note = "\(upload.html.count) characters of HTML"
+                if let save, database != nil {
+                    note += ", \(try save(upload.item, upload.markdown) == .inserted ? "saved" : "updated")"
+                }
+                print("OK    \(folder)/\(file.lastPathComponent)  (\(note))")
             } catch {
                 print("FAIL  \(folder)/\(file.lastPathComponent)\n      \(error)")
             }
         }
     }
-    check(Story.self, folder: "stories")
-    check(AgendaPoint.self, folder: "agenda")
-    check(QuotedItem.self, folder: "quoted")
-    check(Advertisement.self, folder: "advertisements")
+    check(Story.self, folder: "stories") { try database!.save($0, body: $1) }
+    check(AgendaPoint.self, folder: "agenda") { item, _ in try database!.save(item) }
+    check(QuotedItem.self, folder: "quoted") { item, _ in try database!.save(item) }
+    check(Advertisement.self, folder: "advertisements") { item, _ in try database!.save(item) }
+
+    if let database {
+        let inbox = try database.inbox()
+        print("\nInbox (\(inbox.count) items not placed in an issue):")
+        for entry in inbox { print("  \(entry.kind.rawValue.padding(toLength: 13, withPad: " ", startingAt: 0)) \(entry.title)") }
+    }
     exit(0)
 }
 

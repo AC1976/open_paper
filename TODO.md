@@ -5,9 +5,9 @@ one upload go from file to database as early as possible.
 
 ## Open questions
 
-- [ ] **One piece at a time, or a whole edition at once?** If editors usually
-      upload ~15 items together, the review screen should be a list of cards
-      rather than a single card.
+- [x] **One piece at a time, or a whole edition at once?** One piece at a
+      time. Each upload is saved to an **inbox**; a separate view places inbox
+      items into an issue (step 5).
 - [ ] **Who are the editors?** One person → a single account in config is
       enough. Several people → a users table.
 
@@ -15,8 +15,9 @@ one upload go from file to database as early as possible.
 
 - [ ] Run a bare Hummingbird 2 server on Windows. SwiftNIO's Windows support is
       the biggest unknown; if it doesn't work well, move development to WSL.
-- [ ] Split the package: a library target (models, layout planner, HTML
-      components) shared by the existing generator and a new `server` target.
+- [x] Split the package: `OpenPaperKit` library (models, layout planner, HTML
+      components, database) shared by the `open_paper` generator and the
+      `server` target.
 
 ## 1. File → model (no web page yet)
 
@@ -24,24 +25,28 @@ one upload go from file to database as early as possible.
       the body, decode the YAML straight into the model, body → HTML.
 - [x] Check the drafts: `swift run open_paper ingest`.
 
-## 2. Save to the database
+## 2. Save to the database (the inbox)
 
-Once `loadUpload` returns a model and the editor confirms the card, save it.
+Saving an upload puts it in the inbox. Placing it in an issue is step 5.
 
-- [ ] Pick the SQLite library based on what worked in step 0.
-- [ ] Tables, with migrations from the start:
-  - one table per model (stories, agenda points, quotes, ads); the model's
-    `id` is the row key;
-  - stories get one extra `body` column with the **markdown** (render to HTML
-    when the page is shown; optionally store the HTML too);
-  - `Story.image` / `Advertisement.imageSource` saved as one JSON column;
-  - `edition_items`: issue date + item id (+ position later), so one item can
-    appear in more than one edition;
-  - `staged_uploads` and `images` for steps 3–4.
-- [ ] Save in **one transaction**, so it's all saved or nothing is:
-  1. save the image file (if any) and point `source` at it;
-  2. insert the model row (+ `body`);
-  3. insert the (issue date, item id) row.
+- [x] GRDB, with `DatabaseQueue`. The models are GRDB records.
+- [x] Migrations (`PaperDatabase`, migration `v1`):
+  - `items`: one row per uploaded item (id, kind, upload time);
+  - one table per model (`stories`, `agenda_points`, `quoted_items`,
+    `advertisements`), the model `id` is the row key;
+  - `stories.body` holds the **markdown**;
+  - `Story.image` / `Advertisement.imageSource` stored as JSON text;
+  - `edition_items`: issue date + item id + position, so one item can appear
+    in more than one edition.
+- [x] Each save is **one transaction** (`items` row + model row + body).
+- [x] Re-upload of a story with the same `id` or `slug` updates it.
+- [x] Inbox = items not in any `edition_items` row (`inbox()`); `place(_:inIssue:)`.
+- [x] `swift run open_paper ingest --save` puts the drafts in `open_paper.sqlite`;
+      tests in `Tests/OpenPaperKitTests`.
+- [ ] Agenda points, quotes and ads have no natural key, so re-uploading them
+      creates duplicates. Decide a key (or rely on the `id` in the front matter).
+- [ ] `staged_uploads` and `images` tables for steps 3–4. Saving the image
+      *file* (and pointing `source` at it) joins the save transaction then.
 
 ## 3. Upload and staging
 
@@ -53,10 +58,10 @@ Once `loadUpload` returns a model and the editor confirms the card, save it.
 
 ## 4. Review card
 
-- [ ] `GET /editor/uploads/{id}`: editable fields, warnings, issue date, and a
+- [ ] `GET /editor/uploads/{id}`: editable fields, warnings, and a
       live preview using `StoryCard` / agenda / ad components.
-- [ ] Save: run the checks again, then store the item and its placement in one
-      transaction.
+- [ ] Save: run the checks again, then store the item in the inbox (`save`).
+      The issue date is **not** chosen here any more.
 - [ ] Cancel: discard the staged upload.
 - [ ] Re-upload with an existing `slug`/`id`: show "update existing" with the
       changed fields highlighted.
@@ -70,6 +75,7 @@ Once `loadUpload` returns a model and the editor confirms the card, save it.
 
 ## 5. Arrange and publish an edition
 
+- [ ] Inbox view: list unplaced items (`inbox()`), pick an issue date, place them.
 - [ ] A page per date: list placed items, set order and lead, preview the full
       front page, publish.
 - [ ] Public `/` serves the latest published edition.
