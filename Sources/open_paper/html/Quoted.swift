@@ -1,0 +1,27 @@
+import Foundation
+import Elementary
+
+struct QuotedSection: HTML {
+    let items: [QuotedItem]
+
+    var body: some HTML {
+        section(.class("rail-section quoted-section")) {
+            h3(.class("rail-header")) { "Quoted" }
+
+            for item in items {
+                details(.class("quote-card")) {
+                    summary(.class("quote-trigger")) {
+                        blockquote(.class("quote-text")) { "“\(item.quote)”" }
+                        span(.class("quote-speaker")) { "— \(item.speaker)" }
+                    }
+                    div(.class("quote-details")) {
+                        p(.class("quote-context")) { item.context }
+                        a(.href(item.sourceLink), .class("quote-source-link")) {
+                            "Read original source →"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
