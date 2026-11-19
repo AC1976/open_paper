@@ -16,14 +16,15 @@ one upload go from file to database as early as possible.
 - [ ] Run a bare Hummingbird 2 server on Windows. SwiftNIO's Windows support is
       the biggest unknown; if it doesn't work well, move development to WSL.
 - [x] Split the package: `OpenPaperKit` library (models, layout planner, HTML
-      components, database) shared by the `open_paper` generator and the
+      components, database) used by the `server`, and the
       `server` target.
 
 ## 1. File → model (no web page yet)
 
-- [x] `loadUpload(_:from:)` in `models/Upload.swift`: split front matter from
-      the body, decode the YAML straight into the model, body → HTML.
-- [x] Check the drafts: `swift run open_paper ingest`.
+- [x] `parseUpload(_:text:name:)` in `models/Upload.swift`: split front matter from
+      the body, decode the YAML straight into the model, body → HTML. (The
+      command-line `ingest` tool and the static-page generator are gone; the
+      web editor is the way in.)
 
 ## 2. Save to the database (the inbox)
 
@@ -41,8 +42,7 @@ Saving an upload puts it in the inbox. Placing it in an issue is step 5.
 - [x] Each save is **one transaction** (`items` row + model row + body).
 - [x] Re-upload of a story with the same `id` or `slug` updates it.
 - [x] Inbox = items not in any `edition_items` row (`inbox()`); `place(_:inIssue:)`.
-- [x] `swift run open_paper ingest --save` puts the drafts in `open_paper.sqlite`;
-      tests in `Tests/OpenPaperKitTests`.
+- [x] Tests in `Tests/OpenPaperKitTests`.
 - [ ] Agenda points, quotes and ads have no natural key, so re-uploading them
       creates duplicates. Decide a key (or rely on the `id` in the front matter).
 - [ ] `staged_uploads` and `images` tables for steps 3–4. Saving the image
@@ -124,8 +124,27 @@ Done as one item at a time. Run `swift run server`, open http://127.0.0.1:8080/e
       `IssueContents.metadata`; move them to a settings file.
 - [ ] Stored images are embedded in the page as base64. Serve them from an
       address instead so the front page stays small.
-- [ ] Section pages (`/news`, ...) from the database; the masthead links to
-      them but the server does not serve them yet.
+- [x] Section pages: the masthead links (`/sections/news`, `background`, `opinion`,
+      `agenda`, `quoted`) are served from the database, in the front page's style.
+      They list everything that appeared in a **published** issue, newest first:
+      stories by `publishedAt`, agenda points by `eventDate`, quotes by the date of
+      their issue (an item without a date follows its issue). Drafts and the inbox
+      never show up. The masthead shows the date and number of the current front page.
+- [x] Article pages `/articles/{slug}` (the headline links already point there), for
+      stories in a **published** issue only. Three characters in the front page's
+      style: **news** (red kicker, live dot when breaking, bold headline, standfirst,
+      wide photo), **background** (analysis label, side column with an "In brief" box
+      and an "In this article" list made from the headings) and **opinion** (centred,
+      italic headline, framed author name, drop cap, closing note). Each ends with
+      "More in {section}". Shows byline, dates and reading time.
+- [ ] Article images are embedded as base64 (like the front page); serve them from
+      an address so a large photo does not make the page heavy.
+- [ ] Article pages have no share links, social preview tags or related-by-topic;
+      "More in {section}" is simply the newest stories of the same category.
+- [ ] The body markdown may contain raw HTML (it is passed through to the page).
+      Fine for trusted editors; sanitise before opening uploads to anyone else.
+- [ ] Section pages list everything on one page; add paging or a date filter once
+      the archive grows.
 
 ## 6. Editor login
 
