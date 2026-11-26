@@ -1,7 +1,81 @@
-# To do: editor workflow
+# To do
+
+## Plan: crowd-written paper with a news desk
+
+Anyone can submit a story, agenda point or quote. Editors file submissions from
+the news desk and give them a publish date. Each day's paper is generated from
+the items with that date.
+
+### Decided
+
+- Contributors fill in a form, or download a YAML template, complete it and
+  upload it. **Author name and email are mandatory.**
+- Every submission lands on the **news desk**. No email confirmation: the editor
+  sees the address and judges whether the submission is legitimate.
+- Filing an article gives it a **publish date**.
+- A date's front page shows **only the items with that date**.
+- Items filed with a future date appear by themselves when that date arrives
+  (paper's time zone, Europe/Amsterdam). There is no Publish button.
+- Advertisements stay editor-only.
+
+### Steps (in order)
+
+- [x] **A. Editor login.** Accounts are made on the command line
+      (`swift run server add-editor you@example.com`; also `set-password`,
+      `remove-editor`, `list-editors`). Bcrypt passwords, 12-hour sessions
+      stored hashed, HttpOnly SameSite cookie, own-site check on every
+      `/editor` POST, lockout after 5 failed attempts in 15 minutes. Set
+      `OPEN_PAPER_HTTPS=1` when served over HTTPS.
+  - [ ] Before putting it online: HTTPS in front, and rate limiting by address
+        (the lockout is per email, so someone could lock an editor out).
+- [x] **B. Publish dates replace issue placement.** Items are submitted, filed
+      (with one publish date) or rejected. Migration `v5` files items from
+      published issues under their first published date; the old
+      `edition_items` table is kept but unused. Front page, section pages,
+      article pages and issue number follow the publish date, and nothing dated
+      after today (Europe/Amsterdam) is visible. `/` shows the latest date that
+      has items. `/editor/issues/{date}` shows a date's items, sets the layout
+      and previews. The compose page and Publish button are gone.
+- [x] **C. News desk** (`/editor`). Submitted items with type, author and time
+      received; filed and rejected below. On an item: save, "Save and file" with
+      a date, reject, or send back to the desk. Category and priority are set
+      on the same page.
+  - [ ] Show the contributor's email address (it is collected from step E).
+  - [ ] No manual order or lead choice within a date (priority, then time received).
+  - [ ] Advertisements take a single publish date, like articles. Confirm, or
+        give them a date range.
+  - [ ] Edits to an item that is already visible go live at once.
+- [ ] **D. Safe to accept strangers.** Required before step E goes public:
+  - a submission always creates a new item (today an upload with an existing
+    `slug` or `id` overwrites that story);
+  - contributors cannot set `id`, `slug`, priority or publish date;
+  - sanitise raw HTML in markdown; require http/https links on upload as well
+    as in forms;
+  - accept only uploaded images (not arbitrary addresses), check their real
+    type, and remove EXIF / GPS data;
+  - rate limits, size limits and a spam trap on the form.
+- [ ] **E. Contribute pages.** A public form with live preview, downloadable
+      templates and file upload. Author name and email required for all three
+      kinds (stored with the item, not only on stories). Required tick box: "I
+      wrote this myself and you may publish it". Short privacy notice. The name
+      may appear in the paper; **the email address never does**.
+
+### Open questions
+
+- [ ] A day with nothing filed: `/` currently shows the last day that had items,
+      under its own date. Confirm, or show an empty paper.
+- [ ] Do advertisements get a publish date like articles, or a date range?
+- [ ] Do contributors hear back (accepted / rejected)?
+
+---
+
+# Earlier work: editor workflow
+
+(The inbox, compose page and publishing described below were replaced in step B.)
 
 Each step should work end to end before the next one starts. The aim is to see
-one upload go from file to database as early as possible.
+one upload go from file to database as early as possible. Where this conflicts
+with the plan above, the plan above wins.
 
 ## Open questions
 
@@ -148,6 +222,6 @@ Done as one item at a time. Run `swift run server`, open http://127.0.0.1:8080/e
 
 ## 6. Editor login
 
-- [ ] Login and sessions for `/editor/*`.
-- [ ] CSRF protection and upload size limits.
-- [ ] Must be in place before the server runs anywhere others can reach it.
+- [x] Login and sessions for `/editor/*` (see step A above).
+- [x] CSRF protection and upload size limits.
+- [x] Must be in place before the server runs anywhere others can reach it.
