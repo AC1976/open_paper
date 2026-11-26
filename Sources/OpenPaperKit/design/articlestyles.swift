@@ -37,7 +37,7 @@ package enum ArticleStyles {
     .article-dates span + span::before { content: "\\00b7"; margin: 0 0.45rem; }
 
     .article-figure { margin: 1.75rem 0; }
-    .article-figure img { display: block; width: 100%; height: auto; max-height: 38rem; object-fit: cover; background: #f0f0f0; }
+    .article-figure img { display: block; width: 100%; height: auto; max-height: 38rem; object-fit: contain; }
     .article-figure figcaption {
         font-family: var(--font-sans); font-size: 0.78rem; color: var(--ink-secondary);
         margin-top: 0.55rem; line-height: 1.45;

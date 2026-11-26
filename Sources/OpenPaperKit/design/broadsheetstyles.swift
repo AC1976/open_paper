@@ -272,19 +272,19 @@ package enum BroadsheetStyles {
         margin-bottom: 0.75rem;
     }
 
+    /* Pictures are never cropped: they shrink until the whole picture fits.
+       A tall one stops at the height limit and is centred. */
     .story-image {
         width: 100%;
         height: auto;
+        max-height: 32rem;
         display: block;
-        object-fit: cover;
-        aspect-ratio: 16 / 10;
-        background-color: #f0f0f0;
+        object-fit: contain;
     }
 
-    /* Give Breaking News 4-column lead photos a dramatic wide cinema crop */
+    /* The Breaking News lead spans four columns, so it may be taller */
     .mode-breaking .story-card.span-4 .story-image {
-        aspect-ratio: 21 / 9;
-        max-height: 480px;
+        max-height: 40rem;
     }
 
     .image-caption {
@@ -349,12 +349,11 @@ package enum BroadsheetStyles {
     .image-thumbnail .story-figure {
         float: right;
         width: 88px;
-        height: 88px;
         margin: 0 0 0.5rem 0.75rem;
     }
 
     .image-thumbnail .story-image {
-        aspect-ratio: 1 / 1;
+        max-height: 110px;
     }
 
     /* Tablet & Mobile Responsive Overrides */
