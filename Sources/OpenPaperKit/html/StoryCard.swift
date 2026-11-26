@@ -6,6 +6,15 @@ package struct StoryCard: HTML {
 
     private var story: Story { placed.story }
 
+    /// How wide the picture appears in this slot.
+    private var sizes: String {
+        switch placed.imageStyle {
+        case .thumbnail: "96px"
+        case .fullBanner: "(max-width: 1280px) 100vw, 1216px"
+        case .standardLead, .hidden: "(max-width: 640px) 100vw, 640px"
+        }
+    }
+
     package var body: some HTML {
         let priorityClass = "priority-\(story.priority == .high ? "high" : "normal")"
 
@@ -13,12 +22,7 @@ package struct StoryCard: HTML {
             // 1. Render photo only if present and not hidden by layout rules
             if let image = placed.picture, placed.imageStyle != .hidden {
                 figure(.class("story-figure")) {
-                    img(
-                        .src(image.src),
-                        .alt(image.altText),
-                        .class("story-image"),
-                        .custom(name: "loading", value: "lazy")
-                    )
+                    PictureImage(picture: image, sizes: sizes, cssClass: "story-image", lazy: true)
 
                     if placed.imageStyle != .thumbnail && (image.caption != nil || image.credit != nil) {
                         figcaption(.class("image-caption")) {

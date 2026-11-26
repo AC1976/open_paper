@@ -68,7 +68,7 @@ package struct ArticlePage: HTMLDocument {
 
                 if let image = picture {
                     figure(.class("article-figure")) {
-                        img(.src(image.src), .alt(image.altText))
+                        PictureImage(picture: image, sizes: "(max-width: 1040px) 100vw, 1000px")
                         if image.caption != nil || image.credit != nil {
                             figcaption {
                                 if let caption = image.caption { span { caption } }

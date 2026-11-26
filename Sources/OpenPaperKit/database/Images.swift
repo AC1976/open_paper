@@ -13,6 +13,11 @@ package struct ImageFiles: Sendable {
         directory.appendingPathComponent("\(id.uuidString).\(Self.fileExtension(for: mimeType) ?? "bin")")
     }
 
+    /// A smaller version of a picture.
+    package func url(id: UUID, width: Int, mimeType: String) -> URL {
+        directory.appendingPathComponent("\(id.uuidString)-\(width).\(Self.fileExtension(for: mimeType) ?? "bin")")
+    }
+
     func write(_ data: Data, to url: URL) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try data.write(to: url, options: .atomic)
@@ -47,17 +52,23 @@ extension PaperDatabase {
         try queue.read { db in try Self.pictures(of: [id], in: db)[id] }
     }
 
-    /// The file behind `/images/{id}`; nil if there is no such picture.
-    package func image(_ id: UUID, asOf today: String = EditorDates.today()) throws -> ImageDownload? {
+    /// The file behind `/images/{id}`, or its smaller version `?w={width}` when
+    /// there is one; nil if there is no such picture.
+    package func image(_ id: UUID, width: Int? = nil, asOf today: String = EditorDates.today()) throws -> ImageDownload? {
         let row = try queue.read { db in
             try Row.fetchOne(db, sql: """
-                SELECT m.mimeType, i.status = 'filed' AND i.publishDate <= ? AS visible
+                SELECT m.mimeType, m.widths, m.variantType, i.status = 'filed' AND i.publishDate <= ? AS visible
                 FROM images m JOIN items i ON i.id = m.itemId WHERE m.id = ?
                 """, arguments: [today, id.uuidString])
         }
         guard let row else { return nil }
-        let mimeType: String = row["mimeType"]
-        guard let data = try? Data(contentsOf: images.url(id: id, mimeType: mimeType)) else { return nil }
+        var mimeType: String = row["mimeType"]
+        var url = images.url(id: id, mimeType: mimeType)
+        if let width, Self.widths(row["widths"]).contains(width), let variantType: String = row["variantType"] {
+            mimeType = variantType
+            url = images.url(id: id, width: width, mimeType: variantType)
+        }
+        guard let data = try? Data(contentsOf: url) else { return nil }
         return ImageDownload(data: data, mimeType: mimeType, isPublic: row["visible"] ?? false)
     }
 
@@ -84,7 +95,17 @@ extension PaperDatabase {
         var result: [UUID: Picture] = [:]
         for row in rows {
             guard let id = UUID(uuidString: row["id"]), let item = UUID(uuidString: row["itemId"]) else { continue }
-            result[item] = Picture(src: imagePath(id), altText: row["altText"], caption: row["caption"], credit: row["credit"])
+            let src = imagePath(id)
+            let width: Int? = row["width"]
+            var srcset: String?
+            let smaller = widths(row["widths"])
+            if let width, !smaller.isEmpty {
+                srcset = (smaller.map { "\(src)?w=\($0) \($0)w" } + ["\(src) \(width)w"]).joined(separator: ", ")
+            }
+            result[item] = Picture(
+                src: src, altText: row["altText"], caption: row["caption"], credit: row["credit"],
+                width: width, height: row["height"], srcset: srcset
+            )
         }
         return result
     }
@@ -93,7 +114,43 @@ extension PaperDatabase {
     @discardableResult
     func setPicture(_ new: NewPicture, of item: UUID, in db: Database, _ changes: FileChanges) throws -> UUID {
         try removePicture(of: item, in: db, changes)
-        return try Self.insertImage(new, item: item, into: images, in: db, changes)
+        let id = try Self.insertImage(new, item: item, into: images, in: db, changes)
+        try Self.addSizes(to: id, data: new.data, into: images, in: db, changes)
+        return id
+    }
+
+    /// Records the picture's size and writes its smaller versions.
+    private static func addSizes(
+        to id: UUID, data: Data, into files: ImageFiles, in db: Database, _ changes: FileChanges
+    ) throws {
+        guard let info = ImageResizer.info(data) else { return }
+        var made: [Int] = []
+        var variantType: String?
+        for width in ImageResizer.smallerWidths where width < info.width {
+            guard let version = ImageResizer.render(data, width: width) else { continue }
+            let url = files.url(id: id, width: width, mimeType: version.mimeType)
+            try files.write(version.data, to: url)
+            changes.written.append(url)
+            made.append(width)
+            variantType = version.mimeType
+        }
+        try db.execute(
+            sql: "UPDATE images SET width = ?, height = ?, widths = ?, variantType = ? WHERE id = ?",
+            arguments: [info.width, info.height, made.map(String.init).joined(separator: ","), variantType, id.uuidString]
+        )
+    }
+
+    private static func widths(_ list: String?) -> [Int] {
+        (list ?? "").split(separator: ",").compactMap { Int($0) }
+    }
+
+    static func addSizesToStoredImages(_ db: Database, _ files: ImageFiles) throws {
+        for row in try Row.fetchAll(db, sql: "SELECT id, mimeType FROM images") {
+            guard let id = UUID(uuidString: row["id"]),
+                  let data = try? Data(contentsOf: files.url(id: id, mimeType: row["mimeType"]))
+            else { continue }
+            try addSizes(to: id, data: data, into: files, in: db, FileChanges())
+        }
     }
 
     static func insertImage(
@@ -110,9 +167,13 @@ extension PaperDatabase {
     }
 
     func removePicture(of item: UUID, in db: Database, _ changes: FileChanges) throws {
-        let rows = try Row.fetchAll(db, sql: "SELECT id, mimeType FROM images WHERE itemId = ?", arguments: [item.uuidString])
+        let rows = try Row.fetchAll(db, sql: "SELECT * FROM images WHERE itemId = ?", arguments: [item.uuidString])
         for row in rows {
-            if let id = UUID(uuidString: row["id"]) { changes.obsolete.append(images.url(id: id, mimeType: row["mimeType"])) }
+            guard let id = UUID(uuidString: row["id"]) else { continue }
+            changes.obsolete.append(images.url(id: id, mimeType: row["mimeType"]))
+            if let variantType: String = row["variantType"] {
+                changes.obsolete += Self.widths(row["widths"]).map { images.url(id: id, width: $0, mimeType: variantType) }
+            }
         }
         try db.execute(sql: "DELETE FROM images WHERE itemId = ?", arguments: [item.uuidString])
     }

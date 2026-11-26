@@ -146,7 +146,7 @@ package struct ContributePage: HTMLDocument {
             div(.class("field")) {
                 label(.for("imageFile")) { "Picture file" }
                 input(.type(.file), .id("imageFile"), .name("imageFile"), .accept("image/jpeg,image/png,image/webp"))
-                small(.class("hint")) { "JPEG, PNG or WebP, up to 5 MB. Location data is removed. If the form comes back, choose it again." }
+                small(.class("hint")) { "JPEG, PNG or WebP, up to 15 MB. Large pictures are scaled down and location data is removed. If the form comes back, choose it again." }
                 img(.id("thumbnail"), .class("thumbnail"), .alt("The picture you chose"), .custom(name: "hidden", value: ""))
             }
             text("altText", "Description of the picture", limit: SubmissionLimits.title, hint: "Required with a picture, for readers who can't see it.")

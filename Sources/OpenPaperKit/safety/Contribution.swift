@@ -180,13 +180,13 @@ package enum ContributionForm {
                 let credit = optional("credit", "Picture credit", SubmissionLimits.name)
                 if image.count > StoryForm.maxImageBytes {
                     problems.append("The picture is larger than \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
-                } else if let cleaned = ImageCleaner.clean(image) {
+                } else if let cleaned = ImageResizer.accept(image) {
                     picture = NewPicture(
                         data: cleaned.data, mimeType: cleaned.mimeType,
                         text: PictureText(altText: alt, caption: caption, credit: credit)
                     )
                 } else {
-                    problems.append("The picture must be a JPEG, PNG or WebP file.")
+                    problems.append("The picture must be a JPEG, PNG or WebP file of at most 60 megapixels.")
                 }
             }
             item = category.map {

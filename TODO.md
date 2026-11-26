@@ -59,9 +59,9 @@ the items with that date.
   - Rate limit and hidden spam-trap field are written and tested
     (`SubmissionGuard`), connected in step E.
   - [x] `SubmissionGuard` is connected to the public form (step E).
-  - [ ] Limit picture dimensions as well as file size.
+  - [x] Picture dimensions are limited (60 megapixels).
   - [ ] Add a Content-Security-Policy header as a second line of defence.
-  - [ ] Pictures stored before this step still carry their metadata.
+  - [x] Pictures stored earlier are cleaned when moved to files.
   - [ ] Login lockout by network address as well as by email.
 - [x] **E. Contribute pages** (`/contribute`, linked from the masthead). Forms
       for stories, agenda points and quotes with a live preview; downloadable
@@ -79,6 +79,23 @@ the items with that date.
   - [ ] The rate limit is held in memory and resets when the server restarts;
         100 pictures an hour can still grow the database quickly.
   - [ ] Agenda points and quotes show no contributor name to readers.
+
+- [x] **Pictures decoupled.** An `images` table (one picture per item) and
+      files in `open_paper-images/`, next to the database (or
+      `OPEN_PAPER_IMAGES`). `Story`, the `stories` table and story YAML have no
+      image fields. `/images/{id}` serves a picture: to readers only once its item
+      is published, otherwise to signed-in editors. Migration `v7` moves
+      embedded pictures to files (and cleans them) after copying the database to
+      `…before-images.sqlite`. Advertisement uploads are stored the same way.
+  - [ ] **Back up the image folder together with the database.**
+  - [x] **Resizing.** Uploads up to 15 MB / 60 megapixels are scaled to at most
+        2000 px wide (2400 high), with 480, 960 and 1600 px versions; pages use
+        `srcset`. JPEG output, PNG if transparent. Migration `v8` makes versions
+        for pictures already stored.
+  - [ ] WebP / AVIF output (macOS ImageIO cannot write WebP; would need a library).
+  - [ ] No cropping around a focal point; pages crop in the browser (centre).
+  - [ ] Animated pictures lose their animation when scaled.
+  - [ ] Advertisement YAML and the ad edit page still allow an image address.
 
 ### Open questions
 
@@ -182,9 +199,7 @@ Done as one item at a time. Run `swift run server`, open http://127.0.0.1:8080/e
 
 ## 4b. Image processing (after step 4)
 
-- [ ] Resize and crop (21:9, 16:10, 1:1) around `focalPoint`; convert to WebP.
-- [ ] Remove EXIF / GPS location data.
-- [ ] Switch `embed` to `store` above ~200 KB.
+Done as part of "Pictures decoupled" above, except cropping and WebP.
 
 ## 5. Arrange and publish an edition
 
@@ -216,8 +231,6 @@ Done as one item at a time. Run `swift run server`, open http://127.0.0.1:8080/e
 - [ ] Without JavaScript the compose page cannot move items.
 - [ ] Masthead details (paper title, subtitle, edition label) are fixed in
       `IssueContents.metadata`; move them to a settings file.
-- [ ] Stored images are embedded in the page as base64. Serve them from an
-      address instead so the front page stays small.
 - [x] Section pages: the masthead links (`/sections/news`, `background`, `opinion`,
       `agenda`, `quoted`) are served from the database, in the front page's style.
       They list everything that appeared in a **published** issue, newest first:
@@ -231,8 +244,6 @@ Done as one item at a time. Run `swift run server`, open http://127.0.0.1:8080/e
       and an "In this article" list made from the headings) and **opinion** (centred,
       italic headline, framed author name, drop cap, closing note). Each ends with
       "More in {section}". Shows byline, dates and reading time.
-- [ ] Article images are embedded as base64 (like the front page); serve them from
-      an address so a large photo does not make the page heavy.
 - [ ] Article pages have no share links, social preview tags or related-by-topic;
       "More in {section}" is simply the newest stories of the same category.
 - [ ] The body markdown may contain raw HTML (it is passed through to the page).

@@ -33,7 +33,7 @@ package enum EditorStyles {
     .kind-tabs a[aria-current] { background: var(--ink-primary); border-color: var(--ink-primary); color: #fff; }
     .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
     .privacy { font-size: 0.8rem; color: var(--ink-secondary); margin: 0 0 1rem; max-width: 60ch; }
-    .thumbnail { display: block; max-width: 160px; max-height: 120px; margin-top: 0.5rem; border-radius: 4px; }
+    .thumbnail { display: block; width: auto; height: auto; max-width: 160px; max-height: 120px; margin-top: 0.5rem; border-radius: 4px; }
     .editor-logout { margin: 0; }
     .editor-logout button { background: none; border: none; padding: 0; font: inherit; font-size: 0.9rem; cursor: pointer; }
     .login { max-width: 420px; margin: 3rem auto; padding: 0 1rem; }

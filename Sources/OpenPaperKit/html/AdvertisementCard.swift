@@ -9,7 +9,8 @@ package struct AdvertisementCard: HTML {
 
             a(.href(ad.targetURL), .target(.blank), .rel("noopener sponsored"), .class("ad-image-link")) {
                 img(
-                    .src(ad.imageSource.htmlSrc),
+                    // An uploaded image has smaller versions; the ad column is narrow.
+                    .src(ad.imageSource.htmlSrc.hasPrefix("/images/") ? ad.imageSource.htmlSrc + "?w=960" : ad.imageSource.htmlSrc),
                     .alt(ad.altText),
                     .class("ad-graphic"),
                     .custom(name: "loading", value: "lazy")

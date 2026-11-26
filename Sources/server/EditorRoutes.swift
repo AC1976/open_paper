@@ -5,7 +5,7 @@ import HummingbirdElementary
 import OpenPaperKit
 
 /// Largest upload request the editor accepts (a markdown file plus one image).
-let maxRequestBytes = 8 * 1024 * 1024
+let maxRequestBytes = 20 * 1024 * 1024
 
 /// The editor.
 ///

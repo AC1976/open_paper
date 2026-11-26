@@ -35,6 +35,9 @@ package enum BroadsheetStyles {
     /* =========================================
     2. Broadsheet Container & Masthead
     ========================================= */
+    /* Pictures carry their pixel size; they scale to the space they are in. */
+    img { max-width: 100%; height: auto; }
+
     .broadsheet {
         max-width: 1280px;
         margin: 0 auto;

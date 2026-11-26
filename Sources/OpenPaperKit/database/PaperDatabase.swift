@@ -238,6 +238,16 @@ package final class PaperDatabase: Sendable {
             try moveImagesToFiles(db, images)
         }
 
+        migrator.registerMigration("v8-image-sizes") { db in
+            try db.alter(table: "images") { t in
+                t.add(column: "width", .integer)
+                t.add(column: "height", .integer)
+                t.add(column: "widths", .text)          // smaller versions, "480,960"
+                t.add(column: "variantType", .text)     // their file type
+            }
+            try addSizesToStoredImages(db, images)
+        }
+
         return migrator
     }
 

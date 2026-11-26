@@ -45,7 +45,7 @@ private func addImageRoute(to router: Router<AppRequestContext>, database: Paper
     router.get("/images/:id") { request, context -> Response in
         let notFound = HTTPError(.notFound, message: "There is no such picture.")
         guard let id = UUID(uuidString: try context.parameters.require("id")),
-              let image = try database.image(id)
+              let image = try database.image(id, width: request.uri.queryParameters["w"].flatMap { Int($0) })
         else { throw notFound }
         if !image.isPublic {
             guard try signedInEditor(request, database) != nil else { throw notFound }

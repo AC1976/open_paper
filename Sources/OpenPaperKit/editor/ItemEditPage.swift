@@ -157,7 +157,7 @@ package struct ItemEditPage: HTMLDocument {
             // An uploaded image is a file on this site; only other addresses are typed.
             let address: String? = if case .endpoint(let url) = ad.imageSource, !url.hasPrefix("/images/") { url } else { nil }
             img(.src(ad.imageSource.htmlSrc), .alt(ad.altText), .class("thumbnail"))
-            field("imageFile", "Image file", hint: "JPEG, PNG or WebP, up to 5 MB. Choose a file to replace the image.") {
+            field("imageFile", "Image file", hint: "JPEG, PNG or WebP, up to 15 MB. Choose a file to replace the image.") {
                 input(.type(.file), .id("imageFile"), .name("imageFile"), .accept("image/jpeg,image/png,image/webp"))
             }
             if let address {

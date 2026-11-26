@@ -1,3 +1,4 @@
+import Elementary
 import Foundation
 
 /// Where an advertisement's image comes from. Uploaded images are stored as
@@ -25,7 +26,19 @@ package struct Picture: Sendable, Equatable {
     package let caption: String?
     package let credit: String? // e.g., "Jane Doe for The Daily Chronicle"
 
-    package init(src: String, altText: String, caption: String? = nil, credit: String? = nil) {
+    /// Size in pixels, when known; lets the page reserve room before it loads.
+    package let width: Int?
+    package let height: Int?
+    /// The sizes a browser can choose from.
+    package let srcset: String?
+
+    package init(
+        src: String, altText: String, caption: String? = nil, credit: String? = nil,
+        width: Int? = nil, height: Int? = nil, srcset: String? = nil
+    ) {
+        self.width = width
+        self.height = height
+        self.srcset = srcset
         self.src = src
         self.altText = altText
         self.caption = caption
@@ -75,7 +88,28 @@ package enum PictureChange: Sendable, Equatable {
             Picture(src: ImageSource.blob(data: new.data, mimeType: new.mimeType).htmlSrc,
                     altText: new.text.altText, caption: new.text.caption, credit: new.text.credit)
         case .describe(let text):
-            current.map { Picture(src: $0.src, altText: text.altText, caption: text.caption, credit: text.credit) }
+            current.map {
+                Picture(src: $0.src, altText: text.altText, caption: text.caption, credit: text.credit,
+                        width: $0.width, height: $0.height, srcset: $0.srcset)
+            }
         }
+    }
+}
+
+/// The `<img>` for a picture. `sizes` says how wide it appears, so the browser
+/// can pick the smallest version that is still sharp.
+package struct PictureImage: HTML {
+    package let picture: Picture
+    package let sizes: String
+    package var cssClass: String = ""
+    package var lazy: Bool = false
+
+    package var body: some HTML {
+        img(.src(picture.src), .alt(picture.altText))
+            .attributes(.class(cssClass), when: !cssClass.isEmpty)
+            .attributes(.custom(name: "loading", value: "lazy"), when: lazy)
+            .attributes(.custom(name: "srcset", value: picture.srcset ?? ""), .custom(name: "sizes", value: sizes), when: picture.srcset != nil)
+            .attributes(.custom(name: "width", value: "\(picture.width ?? 0)"), .custom(name: "height", value: "\(picture.height ?? 0)"),
+                        when: picture.width != nil && picture.height != nil)
     }
 }

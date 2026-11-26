@@ -127,7 +127,7 @@ package struct ReviewCard: HTMLDocument {
                         }
                     }
                     field("imageFile", picture == nil ? "Image file" : "Replace with another file",
-                          hint: "JPEG, PNG or WebP, up to 5 MB. Choose the file again after \"Update preview\".") {
+                          hint: "JPEG, PNG or WebP, up to 15 MB. Choose the file again after \"Update preview\".") {
                         input(.type(.file), .id("imageFile"), .name("imageFile"), .accept("image/jpeg,image/png,image/webp"))
                     }
                     field("altText", "Alt text", hint: "Describes the image for readers who can't see it.") {

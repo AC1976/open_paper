@@ -94,9 +94,9 @@ struct FormReader {
             problems.append("The image is larger than \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
             return nil
         }
-        // The bytes decide what it is; location and camera data are removed.
-        guard let image = ImageCleaner.clean(file.data) else {
-            problems.append("The image must be a JPEG, PNG or WebP file.")
+        // The bytes decide what it is; metadata is removed and big pictures are scaled down.
+        guard let image = ImageResizer.accept(file.data) else {
+            problems.append("The image must be a JPEG, PNG or WebP file of at most 60 megapixels.")
             return nil
         }
         return image
@@ -139,8 +139,8 @@ struct FormReader {
 
 /// Turns the submitted story form (`ReviewCard`) back into a `Story`.
 package enum StoryForm {
-    /// Largest image accepted until image processing (step 4b) exists.
-    package static let maxImageBytes = 5 * 1024 * 1024
+    /// Largest picture file accepted. It is scaled down before it is stored.
+    package static let maxImageBytes = 15 * 1024 * 1024
 
     package typealias Problems = FormProblems
 
