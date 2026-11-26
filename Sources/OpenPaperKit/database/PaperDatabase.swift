@@ -143,6 +143,20 @@ package final class PaperDatabase: Sendable {
             }
         }
 
+        migrator.registerMigration("v4-editors") { db in
+            try db.create(table: "editors") { t in
+                t.column("id", .text).primaryKey()
+                t.column("email", .text).notNull().unique()      // stored lower-case
+                t.column("passwordHash", .text).notNull()        // bcrypt
+                t.column("createdAt", .datetime).notNull()
+            }
+            try db.create(table: "sessions") { t in
+                t.column("tokenHash", .text).primaryKey()        // SHA-256 of the cookie value
+                t.column("editorId", .text).notNull().indexed().references("editors", onDelete: .cascade)
+                t.column("expiresAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 

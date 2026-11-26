@@ -16,6 +16,10 @@ let package = Package(
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.0.0"),
         // Return Elementary HTML directly from Hummingbird routes
         .package(url: "https://github.com/hummingbird-community/hummingbird-elementary.git", from: "0.6.0"),
+        // HTTP header names (used by the editor's request checks)
+        .package(url: "https://github.com/apple/swift-http-types.git", from: "1.0.0"),
+        // Password hashing (bcrypt) for editor accounts
+        .package(url: "https://github.com/hummingbird-project/hummingbird-auth.git", from: "2.0.0"),
         // SQLite: migrations, transactions, Codable records
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0")
     ],
@@ -28,7 +32,8 @@ let package = Package(
                 .product(name: "Elementary", package: "elementary"),
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Ink", package: "Ink"),
-                .product(name: "GRDB", package: "GRDB.swift")
+                .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "HummingbirdBcrypt", package: "hummingbird-auth")
             ],
             exclude: ["design/broadsheet.css"]
         ),
@@ -39,7 +44,8 @@ let package = Package(
                 "OpenPaperKit",
                 .product(name: "Elementary", package: "elementary"),
                 .product(name: "Hummingbird", package: "hummingbird"),
-                .product(name: "HummingbirdElementary", package: "hummingbird-elementary")
+                .product(name: "HummingbirdElementary", package: "hummingbird-elementary"),
+                .product(name: "HTTPTypes", package: "swift-http-types")
             ]
         ),
         .testTarget(

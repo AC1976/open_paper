@@ -22,6 +22,9 @@ package struct EditorBar: HTML {
             nav(.class("editor-nav")) {
                 a(.href("/editor"), .class("editor-link")) { "Inbox" }
                 a(.href("/editor/issues"), .class("editor-link")) { "Issues" }
+                form(.method(.post), .action("/editor/logout"), .enctype(.multipartFormData), .class("editor-logout")) {
+                    button(.type(.submit), .class("editor-link")) { "Log out" }
+                }
             }
         }
     }

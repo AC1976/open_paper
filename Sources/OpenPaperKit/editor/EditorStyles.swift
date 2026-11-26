@@ -19,6 +19,10 @@ package enum EditorStyles {
         color: #fff;
     }
     .editor-brand { font-weight: 700; letter-spacing: 0.02em; }
+    .editor-logout { margin: 0; }
+    .editor-logout button { background: none; border: none; padding: 0; font: inherit; font-size: 0.9rem; cursor: pointer; }
+    .login { max-width: 420px; margin: 3rem auto; padding: 0 1rem; }
+    .login .actions { margin-bottom: 0; }
     .editor-nav { display: flex; gap: 1.25rem; }
     .editor-link { color: #ddd; text-decoration: none; font-size: 0.9rem; }
     .editor-link:hover { color: #fff; }

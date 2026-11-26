@@ -27,7 +27,7 @@ private let maxRequestBytes = 8 * 1024 * 1024
 ///     POST {prefix}           save
 ///     POST {prefix}/preview   re-render a story with the edited fields (not saved)
 ///     POST {prefix}/cancel    discard the upload / leave the edit
-func addEditorRoutes(to router: Router<BasicRequestContext>, database: PaperDatabase) {
+func addEditorRoutes(to router: some RouterMethods<BasicRequestContext>, database: PaperDatabase) {
 
     // MARK: Home and uploads
 
@@ -173,7 +173,7 @@ private struct ItemTarget: Sendable {
 }
 
 private func addItemRoutes(
-    to router: Router<BasicRequestContext>,
+    to router: some RouterMethods<BasicRequestContext>,
     prefix: String,
     database: PaperDatabase,
     resolve: @escaping @Sendable (BasicRequestContext) throws -> ItemTarget
@@ -293,7 +293,7 @@ private func homePage(_ database: PaperDatabase, problems: [String] = []) throws
     EditorHomePage(inbox: try database.inbox(), waiting: try database.stagedUploads(), problems: problems)
 }
 
-private func readForm(_ request: Request) async throws -> MultipartForm {
+func readForm(_ request: Request) async throws -> MultipartForm {
     var request = request
     let body: ByteBuffer
     do {
