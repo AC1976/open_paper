@@ -19,13 +19,15 @@ package struct ArticlePage: HTMLDocument {
     package let bodyHTML: String
     /// The date of the paper it appeared in, "yyyy-MM-dd".
     package let publishDate: String?
+    package let picture: Picture?
     /// Other stories of the same category, newest first.
     package let related: [Story]
 
     package init(
         metadata: EditionMetadata, story: Story, bodyHTML: String,
-        publishDate: String? = nil, related: [Story] = []
+        publishDate: String? = nil, picture: Picture? = nil, related: [Story] = []
     ) {
+        self.picture = picture
         self.publishDate = publishDate
         self.metadata = metadata
         self.story = story
@@ -64,9 +66,9 @@ package struct ArticlePage: HTMLDocument {
                     meta_
                 }
 
-                if let image = story.image {
+                if let image = picture {
                     figure(.class("article-figure")) {
-                        img(.src(image.source.htmlSrc), .alt(image.altText))
+                        img(.src(image.src), .alt(image.altText))
                         if image.caption != nil || image.credit != nil {
                             figcaption {
                                 if let caption = image.caption { span { caption } }

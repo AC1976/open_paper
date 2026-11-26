@@ -83,42 +83,38 @@ private let storyFields: [(String, String)] = [
 @Suite struct StoryFormTests {
     @Test func buildsAStoryFromTheForm() throws {
         let form = try MultipartForm(body: multipart(fields: storyFields), boundary: "XyZ")
-        let (story, body) = try StoryForm.story(from: form)
+        let (story, body, _) = try StoryForm.story(from: form)
 
         #expect(story.id.uuidString == "11111111-1111-1111-1111-111111111111")
         #expect(story.category == .news && story.priority == .high)
         #expect(story.title == "A title" && story.slug == "a-title")
-        #expect(story.author == nil && story.extendedSummary == nil && story.image == nil)
+        #expect(story.author == nil && story.extendedSummary == nil)
         #expect(story.publishedAt != nil && story.updatedAt == nil)
         #expect(EditorDates.dateTime(story.publishedAt!) == "2026-11-20T06:00")
         #expect(body == "Line one\r\n\r\nLine two")
     }
 
-    @Test func uploadedImageBecomesABlob() throws {
-        let fields = storyFields + [("image.altText", "Alt"), ("image.caption", "Cap")]
+    @Test func aChosenFileBecomesTheNewPicture() throws {
+        let fields = storyFields + [("altText", "Alt"), ("caption", "Cap")]
         let body = multipart(fields: fields, files: [("imageFile", "p.png", "image/png", TestImage.png(3))])
-        let (story, _) = try StoryForm.story(from: MultipartForm(body: body, boundary: "XyZ"))
-
-        guard case .blob(let data, let type)? = story.image?.source else { Issue.record("no blob"); return }
-        #expect(data == TestImage.png(3) && type == "image/png")
-        #expect(story.image?.altText == "Alt" && story.image?.caption == "Cap")
+        let result = try StoryForm.story(from: MultipartForm(body: body, boundary: "XyZ"))
+        #expect(result.picture == .replace(NewPicture(data: TestImage.png(3), mimeType: "image/png",
+                                                      text: PictureText(altText: "Alt", caption: "Cap"))))
     }
 
-    @Test func imageAddressIsUsedWhenNoFileIsChosen() throws {
-        let fields = storyFields + [("image.source.endpoint.url", "https://x/y.jpg"), ("image.altText", "Alt")]
-        let (story, _) = try StoryForm.story(from: MultipartForm(body: multipart(fields: fields), boundary: "XyZ"))
-        guard case .endpoint(let url)? = story.image?.source else { Issue.record("no endpoint"); return }
-        #expect(url == "https://x/y.jpg")
+    @Test func withoutAFileOrAPictureNothingChanges() throws {
+        let form = try MultipartForm(body: multipart(fields: storyFields + [("altText", "unused")]), boundary: "XyZ")
+        #expect(try StoryForm.story(from: form).picture == .unchanged)
     }
 
     @Test func reportsEveryProblemAtOnce() throws {
         let fields: [(String, String)] = [
             ("category", "sports"), ("priority", "9"), ("title", ""), ("slug", "Has Spaces"),
-            ("summary", ""), ("publishedAt", "yesterday"), ("image.source.endpoint.url", "x.jpg"),
+            ("summary", ""), ("publishedAt", "yesterday"),
         ]
         let form = try MultipartForm(body: multipart(fields: fields), boundary: "XyZ")
         do {
-            _ = try StoryForm.story(from: form)
+            _ = try StoryForm.story(from: form, hasPicture: true)
             Issue.record("should have failed")
         } catch let problems as StoryForm.Problems {
             let text = problems.messages.joined(separator: "\n")
@@ -130,7 +126,7 @@ private let storyFields: [(String, String)] = [
     }
 
     @Test func rejectsNonImageFiles() throws {
-        let body = multipart(fields: storyFields + [("image.altText", "a")],
+        let body = multipart(fields: storyFields + [("altText", "a")],
                              files: [("imageFile", "x.pdf", "application/pdf", Data([1]))])
         #expect(throws: StoryForm.Problems.self) {
             try StoryForm.story(from: MultipartForm(body: body, boundary: "XyZ"))

@@ -25,8 +25,10 @@ The header uses the same field names as the models in
 ## Notes
 
 - Every upload becomes a **new** item; it never replaces an existing one.
-- `id`, `slug`, `priority`, `publishedAt`, `updatedAt` and a story's `image` are
-  **ignored**: editors set them (and add the picture) on the review page.
+- `id`, `slug`, `priority`, `publishedAt` and `updatedAt` are **ignored**:
+  editors set them on the review page.
+- Stories have no image fields. A picture is uploaded separately, on the
+  contribute form or the review page.
 - Links must start with `http://` or `https://`. HTML in the text is shown as
   text, and pictures in the text are removed.
 - YAML anchors and aliases (`&`, `*`) are not allowed in the header.

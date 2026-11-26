@@ -135,7 +135,8 @@ package enum ContributionForm {
     /// Checks a submitted form. All problems are reported at once.
     package static func read(
         _ kind: ContributionKind, fields: ContributionFields, image: Data? = nil
-    ) throws -> (item: ParsedUpload, contributor: Contributor) {
+    ) throws -> (item: ParsedUpload, contributor: Contributor, picture: NewPicture?) {
+        var picture: NewPicture?
         var problems: [String] = []
 
         func check<T>(_ work: () throws -> T) -> T? {
@@ -173,7 +174,6 @@ package enum ContributionForm {
                 problems.append("\(SubmissionError.tooLong("Article text", SubmissionLimits.body))")
             }
 
-            var picture: StoryImage?
             if let image {
                 let alt = text("altText", "Description of the picture", SubmissionLimits.title)
                 let caption = optional("caption", "Caption", SubmissionLimits.title)
@@ -181,9 +181,9 @@ package enum ContributionForm {
                 if image.count > StoryForm.maxImageBytes {
                     problems.append("The picture is larger than \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
                 } else if let cleaned = ImageCleaner.clean(image) {
-                    picture = StoryImage(
-                        source: .blob(data: cleaned.data, mimeType: cleaned.mimeType),
-                        altText: alt, caption: caption, credit: credit
+                    picture = NewPicture(
+                        data: cleaned.data, mimeType: cleaned.mimeType,
+                        text: PictureText(altText: alt, caption: caption, credit: credit)
                     )
                 } else {
                     problems.append("The picture must be a JPEG, PNG or WebP file.")
@@ -192,7 +192,7 @@ package enum ContributionForm {
             item = category.map {
                 .story(Story(
                     category: $0, priority: .normal, title: title, summary: summary, extendedSummary: extended,
-                    slug: Slug.make(from: title), author: name, image: picture
+                    slug: Slug.make(from: title), author: name
                 ), markdown: body, html: "")
             }
 
@@ -220,6 +220,6 @@ package enum ContributionForm {
         }
 
         guard problems.isEmpty, let item else { throw FormProblems(messages: problems) }
-        return (item, Contributor(name: name, email: email))
+        return (item, Contributor(name: name, email: email), picture)
     }
 }

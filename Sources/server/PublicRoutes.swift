@@ -1,5 +1,6 @@
 import Elementary
 import Foundation
+import HTTPTypes
 import Hummingbird
 import HummingbirdElementary
 import OpenPaperKit
@@ -12,9 +13,11 @@ import OpenPaperKit
 ///     GET /sections/{name}  everything published in a section, newest first:
 ///                           news, background, opinion, agenda or quoted
 ///     GET /articles/{slug}  a published story
+///     GET /images/{id}      a picture; unpublished ones only for signed-in editors
 func addPublicRoutes(to router: Router<AppRequestContext>, database: PaperDatabase) {
     addSectionRoutes(to: router, database: database)
     addArticleRoutes(to: router, database: database)
+    addImageRoute(to: router, database: database)
 
     router.get("/") { request, context -> Response in
         guard let date = try database.latestIssueDate() else {
@@ -36,12 +39,34 @@ func addPublicRoutes(to router: Router<AppRequestContext>, database: PaperDataba
     }
 }
 
+/// Serves picture files. Readers get only pictures of published items; anyone
+/// else asking for one is told it does not exist.
+private func addImageRoute(to router: Router<AppRequestContext>, database: PaperDatabase) {
+    router.get("/images/:id") { request, context -> Response in
+        let notFound = HTTPError(.notFound, message: "There is no such picture.")
+        guard let id = UUID(uuidString: try context.parameters.require("id")),
+              let image = try database.image(id)
+        else { throw notFound }
+        if !image.isPublic {
+            guard try signedInEditor(request, database) != nil else { throw notFound }
+        }
+        var headers: HTTPFields = [
+            .contentType: image.mimeType,
+            // A replaced picture gets a new address, but a withdrawn one should
+            // not linger for long.
+            .cacheControl: image.isPublic ? "public, max-age=86400" : "private, no-store",
+        ]
+        if let noSniff = HTTPField.Name("X-Content-Type-Options") { headers[noSniff] = "nosniff" }
+        return Response(status: .ok, headers: headers, body: .init(byteBuffer: ByteBuffer(bytes: image.data)))
+    }
+}
+
 /// The page behind every headline: `/articles/{slug}`. Only stories filed for
 /// today or earlier can be read.
 private func addArticleRoutes(to router: Router<AppRequestContext>, database: PaperDatabase) {
     router.get("/articles/:slug") { request, context -> Response in
         let slug = try context.parameters.require("slug")
-        guard let (story, markdown, publishDate) = try database.publishedStory(slug: slug),
+        guard let (story, markdown, publishDate, picture) = try database.publishedStory(slug: slug),
               let latest = try database.latestIssueDate()
         else {
             throw HTTPError(.notFound, message: "There is no article with that address.")
@@ -54,6 +79,7 @@ private func addArticleRoutes(to router: Router<AppRequestContext>, database: Pa
             story: story,
             bodyHTML: markdownToHTML(markdown),
             publishDate: publishDate,
+            picture: picture,
             related: Array(related)
         )
         return HTMLResponse { page }.response(from: request, context: context)
@@ -79,7 +105,8 @@ private func addSectionRoutes(to router: Router<AppRequestContext>, database: Pa
             section: section,
             stories: items.stories,
             agendaPoints: items.agendaPoints,
-            quotedItems: items.quotedItems
+            quotedItems: items.quotedItems,
+            pictures: items.pictures
         )
         return HTMLResponse { page }.response(from: request, context: context)
     }

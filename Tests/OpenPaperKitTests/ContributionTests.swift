@@ -56,8 +56,8 @@ private func problems(_ kind: ContributionKind, _ fields: ContributionFields, im
         #expect(problems(.story, fields(["altText": "a"]), image: Data("<svg/>".utf8)).count == 1)
         #expect(problems(.story, fields(["altText": "a"]), image: Data(count: StoryForm.maxImageBytes + 1)).count == 1)
         let result = try ContributionForm.read(.story, fields: fields(["altText": "a"]), image: TestImage.png(4))
-        guard case .story(let story, _, _) = result.item, case .blob(let data, let type)? = story.image?.source else { Issue.record("no picture"); return }
-        #expect(data == TestImage.png(4) && type == "image/png")
+        #expect(result.picture?.data == TestImage.png(4) && result.picture?.mimeType == "image/png")
+        #expect(result.picture?.text.altText == "a")
     }
 }
 

@@ -14,13 +14,6 @@ extendedSummary: >
   Under the terms of the agreement, wealthier industrial economies committed
   $120 billion annually in grid-interconnection financing, while coastal nations
   agreed to fast-track subsea cable permitting across shared maritime zones.
-image:
-  source:
-    endpoint:
-      url: images/power-lines-sunset.jpg
-  altText: High-voltage power lines at sunset
-  caption: Delegates worked through the night to finalize transmission targets.
-  credit: Photo by Studio Archive
 ---
 
 The article body goes here, in plain markdown.

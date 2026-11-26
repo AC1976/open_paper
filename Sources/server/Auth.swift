@@ -32,6 +32,12 @@ struct SameOriginOnly: RouterMiddleware {
     }
 }
 
+/// The editor whose session cookie came with the request.
+func signedInEditor(_ request: Request, _ database: PaperDatabase) throws -> Editor? {
+    guard let token = request.cookies[sessionCookie]?.value else { return nil }
+    return try database.editor(forSession: token)
+}
+
 /// Lets only signed-in editors through. Page requests are sent to the login
 /// page; anything else gets 401.
 struct SignedInOnly: RouterMiddleware {
@@ -42,7 +48,7 @@ struct SignedInOnly: RouterMiddleware {
         context: AppRequestContext,
         next: (Request, AppRequestContext) async throws -> Response
     ) async throws -> Response {
-        if let token = request.cookies[sessionCookie]?.value, try database.editor(forSession: token) != nil {
+        if try signedInEditor(request, database) != nil {
             return try await next(request, context)
         }
         guard request.method == .get else {

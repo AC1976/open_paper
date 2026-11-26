@@ -18,6 +18,8 @@ package struct ReviewCard: HTMLDocument {
     package let backHref: String
     /// Set for saved items, which can be filed or rejected here.
     package let filing: Filing?
+    /// The story's current picture, if any.
+    package let picture: Picture?
 
     package init(
         story: Story,
@@ -27,8 +29,10 @@ package struct ReviewCard: HTMLDocument {
         problems: [String] = [],
         heading: String = "Review story",
         backHref: String = "/editor",
-        filing: Filing? = nil
+        filing: Filing? = nil,
+        picture: Picture? = nil
     ) {
+        self.picture = picture
         self.filing = filing
         self.heading = heading
         self.backHref = backHref
@@ -113,17 +117,8 @@ package struct ReviewCard: HTMLDocument {
 
                 fieldset {
                     legend { "Image" }
-                    if let path = Self.localPath(of: story.image) {
-                        p(.class("notice")) {
-                            "This story refers to "
-                            code { path }
-                            ". Choose the file to upload it with the story."
-                        }
-                    }
-                    if case .blob(let data, _)? = story.image?.source {
-                        p(.class("notice")) {
-                            "This story has an uploaded image (\(max(data.count / 1024, 1)) KB). Choose a file to replace it, or tick the box to remove it."
-                        }
+                    if let picture {
+                        img(.src(picture.src), .alt(picture.altText), .class("thumbnail"))
                         div(.class("field")) {
                             label(.for("removeImage")) {
                                 input(.type(.checkbox), .id("removeImage"), .name("removeImage"), .value("yes"))
@@ -131,21 +126,18 @@ package struct ReviewCard: HTMLDocument {
                             }
                         }
                     }
-                    field("imageFile", "Image file", hint: "JPEG, PNG or WebP, up to 5 MB. Choose the file again after \"Update preview\".") {
+                    field("imageFile", picture == nil ? "Image file" : "Replace with another file",
+                          hint: "JPEG, PNG or WebP, up to 5 MB. Choose the file again after \"Update preview\".") {
                         input(.type(.file), .id("imageFile"), .name("imageFile"), .accept("image/jpeg,image/png,image/webp"))
                     }
-                    field("imageURL", "Or image address") {
-                        input(.type(.text), .id("imageURL"), .name("image.source.endpoint.url"),
-                              .value(Self.url(of: story.image) ?? ""))
-                    }
                     field("altText", "Alt text", hint: "Describes the image for readers who can't see it.") {
-                        input(.type(.text), .id("altText"), .name("image.altText"), .value(story.image?.altText ?? ""))
+                        input(.type(.text), .id("altText"), .name("altText"), .value(picture?.altText ?? ""))
                     }
                     field("caption", "Caption") {
-                        input(.type(.text), .id("caption"), .name("image.caption"), .value(story.image?.caption ?? ""))
+                        input(.type(.text), .id("caption"), .name("caption"), .value(picture?.caption ?? ""))
                     }
                     field("credit", "Credit") {
-                        input(.type(.text), .id("credit"), .name("image.credit"), .value(story.image?.credit ?? ""))
+                        input(.type(.text), .id("credit"), .name("credit"), .value(picture?.credit ?? ""))
                     }
                 }
 
@@ -167,7 +159,7 @@ package struct ReviewCard: HTMLDocument {
             }
 
             aside(.class("review-preview")) {
-                StoryPreview(story: story, bodyHTML: bodyHTML)
+                StoryPreview(story: story, bodyHTML: bodyHTML, picture: picture)
             }
         }
     }
@@ -186,16 +178,5 @@ package struct ReviewCard: HTMLDocument {
                 small(.class("hint")) { hint }
             }
         }
-    }
-
-    private static func url(of image: StoryImage?) -> String? {
-        guard let image, case .endpoint(let url) = image.source else { return nil }
-        return url
-    }
-
-    /// The image path when it points at a file the editor still has to upload.
-    private static func localPath(of image: StoryImage?) -> String? {
-        guard let url = url(of: image), !url.hasPrefix("http://"), !url.hasPrefix("https://") else { return nil }
-        return url
     }
 }

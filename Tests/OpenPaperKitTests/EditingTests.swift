@@ -15,10 +15,8 @@ private func form(_ fields: [(String, String)], files: [(String, String, String,
     return try MultipartForm(body: body, boundary: "B")
 }
 
-private let blobImage = StoryImage(source: .blob(data: Data([1, 2, 3]), mimeType: "image/png"), altText: "alt", caption: nil, credit: nil)
-
-private func story(slug: String = "a-story", image: StoryImage? = nil) -> Story {
-    Story(category: .news, priority: .high, title: "A story", summary: "s", slug: slug, image: image)
+private func story(slug: String = "a-story") -> Story {
+    Story(category: .news, priority: .high, title: "A story", summary: "s", slug: slug)
 }
 
 private let storyFields: [(String, String)] = [
@@ -96,34 +94,25 @@ private let storyFields: [(String, String)] = [
 }
 
 @Suite struct StoryEditingTests {
-    @Test func editedStoryKeepsItsStoredImage() throws {
-        let existing = story(image: blobImage)
-        // The form shows no address for a stored image and no file is chosen.
-        let (edited, _) = try StoryForm.story(from: form(storyFields + [("image.altText", "alt")]), keeping: existing)
-        guard case .blob(let data, _)? = edited.image?.source else { Issue.record("image lost"); return }
-        #expect(data == Data([1, 2, 3]))
+    private func change(_ extra: [(String, String)], files: [(String, String, String, Data)] = []) throws -> PictureChange {
+        try StoryForm.story(from: form(storyFields + extra, files: files), keeping: story(), hasPicture: true).picture
     }
 
-    @Test func clearingTheImageAddressRemovesTheImage() throws {
-        let withAddress = story(image: StoryImage(source: .endpoint(url: "images/x.jpg"), altText: "alt", caption: nil, credit: nil))
-        let (edited, _) = try StoryForm.story(from: form(storyFields), keeping: withAddress)
-        #expect(edited.image == nil)
+    @Test func anExistingPictureIsKeptWithItsNewWords() throws {
+        #expect(try change([("altText", "alt"), ("credit", "me")]) == .describe(PictureText(altText: "alt", credit: "me")))
     }
 
-    @Test func removeImageTickDropsTheImage() throws {
-        let (edited, _) = try StoryForm.story(
-            from: form(storyFields + [("image.altText", "alt"), ("removeImage", "yes")]), keeping: story(image: blobImage)
-        )
-        #expect(edited.image == nil)
+    @Test func removeTickDropsThePicture() throws {
+        #expect(try change([("altText", "alt"), ("removeImage", "yes")]) == .remove)
     }
 
-    @Test func newFileReplacesTheStoredImage() throws {
-        let (edited, _) = try StoryForm.story(
-            from: form(storyFields + [("image.altText", "alt")], files: [("imageFile", "n.jpg", "image/jpeg", TestImage.jpeg(9))]),
-            keeping: story(image: blobImage)
-        )
-        guard case .blob(let data, let type)? = edited.image?.source else { Issue.record("no blob"); return }
-        #expect(data == TestImage.jpeg(9) && type == "image/jpeg")
+    @Test func newFileReplacesThePicture() throws {
+        let result = try change([("altText", "alt")], files: [("imageFile", "n.jpg", "image/jpeg", TestImage.jpeg(9))])
+        #expect(result == .replace(NewPicture(data: TestImage.jpeg(9), mimeType: "image/jpeg", text: PictureText(altText: "alt"))))
+    }
+
+    @Test func aPictureNeedsAltText() {
+        #expect(throws: FormProblems.self) { try change([]) }
     }
 }
 

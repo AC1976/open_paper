@@ -12,6 +12,8 @@ package struct IssueContents: Sendable {
     package let agendaPoints: [AgendaPoint]
     package let quotedItems: [QuotedItem]
     package let advertisements: [Advertisement]
+    /// The stories' pictures, by story id.
+    package let pictures: [UUID: Picture]
 
     package var isEmpty: Bool {
         stories.isEmpty && agendaPoints.isEmpty && quotedItems.isEmpty && advertisements.isEmpty
@@ -34,7 +36,8 @@ package struct IssueContents: Sendable {
             stories: stories,
             agendaPoints: agendaPoints,
             quotedItems: quotedItems,
-            advertisements: advertisements
+            advertisements: advertisements,
+            pictures: pictures
         )
     }
 }
@@ -84,14 +87,16 @@ extension PaperDatabase {
                 sql: "SELECT COUNT(DISTINCT publishDate) FROM items WHERE status = 'filed' AND publishDate <= ?",
                 arguments: [date]
             ) ?? 0
+            let stories = try load(Story.self)
             return IssueContents(
                 date: date,
                 number: max(number, 1),
                 mode: try Self.mode(date, in: db),
-                stories: try load(Story.self),
+                stories: stories,
                 agendaPoints: try load(AgendaPoint.self),
                 quotedItems: try load(QuotedItem.self),
-                advertisements: try load(Advertisement.self)
+                advertisements: try load(Advertisement.self),
+                pictures: try Self.pictures(of: stories.map(\.id), in: db)
             )
         }
     }

@@ -30,16 +30,16 @@ import Testing
 
     private func story(
         _ category: StoryCategory, priority: StoryPriority = .normal, title: String = "A headline", author: String? = "Jane Doe",
-        extended: String? = "More detail.", image: StoryImage? = nil
+        extended: String? = "More detail."
     ) -> Story {
         Story(
             category: category, priority: priority, title: title, summary: "The summary.", extendedSummary: extended,
-            slug: "a-headline", publishedAt: ISO8601DateFormatter().date(from: "2026-11-20T05:00:00Z"), author: author, image: image
+            slug: "a-headline", publishedAt: ISO8601DateFormatter().date(from: "2026-11-20T05:00:00Z"), author: author
         )
     }
 
-    private func render(_ story: Story, body: String = "<p>Body text.</p>", related: [Story] = []) -> String {
-        ArticlePage(metadata: metadata, story: story, bodyHTML: body, publishDate: "2026-11-20", related: related).render()
+    private func render(_ story: Story, body: String = "<p>Body text.</p>", picture: Picture? = nil, related: [Story] = []) -> String {
+        ArticlePage(metadata: metadata, story: story, bodyHTML: body, publishDate: "2026-11-20", picture: picture, related: related).render()
     }
 
     @Test func theArticleShowsItsPublishDate() {
@@ -88,8 +88,8 @@ import Testing
         let bare = render(story(.news, author: nil, extended: nil))
         #expect(!bare.contains("By ") && !bare.contains("<figure"))
 
-        let image = StoryImage(source: .endpoint(url: "/x.jpg"), altText: "Alt text", caption: "A caption", credit: "Photo: Someone")
-        let withImage = render(story(.news, image: image))
+        let picture = Picture(src: "/x.jpg", altText: "Alt text", caption: "A caption", credit: "Photo: Someone")
+        let withImage = render(story(.news), picture: picture)
         #expect(withImage.contains("src=\"/x.jpg\"") && withImage.contains("A caption") && withImage.contains("Photo: Someone"))
     }
 

@@ -154,20 +154,15 @@ package struct ItemEditPage: HTMLDocument {
 
         fieldset {
             legend { "Image" }
-            switch ad.imageSource {
-            case .blob(let data, _):
-                p(.class("notice")) {
-                    "This advertisement has an uploaded image (\(max(data.count / 1024, 1)) KB). Choose a file to replace it."
-                }
-            case .endpoint(let url):
-                p(.class("notice")) { "Current image: "; code { url } }
-            }
-            field("imageFile", "Image file", hint: "JPEG, PNG or WebP, up to 5 MB.") {
+            // An uploaded image is a file on this site; only other addresses are typed.
+            let address: String? = if case .endpoint(let url) = ad.imageSource, !url.hasPrefix("/images/") { url } else { nil }
+            img(.src(ad.imageSource.htmlSrc), .alt(ad.altText), .class("thumbnail"))
+            field("imageFile", "Image file", hint: "JPEG, PNG or WebP, up to 5 MB. Choose a file to replace the image.") {
                 input(.type(.file), .id("imageFile"), .name("imageFile"), .accept("image/jpeg,image/png,image/webp"))
             }
-            if case .endpoint(let url) = ad.imageSource {
+            if let address {
                 field("imageURL", "Or image address") {
-                    input(.type(.text), .id("imageURL"), .name("image.source.endpoint.url"), .value(url))
+                    input(.type(.text), .id("imageURL"), .name("image.source.endpoint.url"), .value(address))
                 }
             }
             field("altText", "Alt text", hint: "Describes the image for readers who can't see it.") {

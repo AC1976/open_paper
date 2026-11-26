@@ -27,7 +27,6 @@ package struct Story: Identifiable, Codable, Sendable {
     package let publishedAt: Date?
     package let updatedAt: Date?
     package let author: String?
-    package let image: StoryImage? // Optional editorial photo or ad graphic
 
     package init(
         id: UUID = UUID(),
@@ -39,8 +38,7 @@ package struct Story: Identifiable, Codable, Sendable {
         slug: String,
         publishedAt: Date? = nil,
         updatedAt: Date? = nil,
-        author: String? = nil,
-        image: StoryImage? = nil
+        author: String? = nil
     ) {
         self.id = id
         self.category = category
@@ -52,6 +50,5 @@ package struct Story: Identifiable, Codable, Sendable {
         self.publishedAt = publishedAt
         self.updatedAt = updatedAt
         self.author = author
-        self.image = image
     }
 }

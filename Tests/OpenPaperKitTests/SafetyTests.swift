@@ -10,7 +10,7 @@ private func storyFile(_ extra: String = "", title: String = "Global Summit", bo
 }
 
 @Suite struct SubmissionTests {
-    @Test func contributorsCannotChooseIdSlugPriorityDatesOrImage() throws {
+    @Test func contributorsCannotChooseIdSlugPriorityOrDatesAndImagesAreIgnored() throws {
         let file = storyFile("""
             id: 11111111-1111-1111-1111-111111111111
             slug: front-page
@@ -25,7 +25,7 @@ private func storyFile(_ extra: String = "", title: String = "Global Summit", bo
         guard case .story(let s, _, _) = try ParsedUpload(kind: .story, text: file, name: "x.md") else { Issue.record("not a story"); return }
         #expect(s.id.uuidString != "11111111-1111-1111-1111-111111111111")
         #expect(s.slug == "global-summit" && s.priority == .normal)
-        #expect(s.publishedAt == nil && s.updatedAt == nil && s.image == nil)
+        #expect(s.publishedAt == nil && s.updatedAt == nil)
     }
 
     @Test func aSubmissionNeverOverwritesAnExistingItem() throws {

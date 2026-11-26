@@ -79,7 +79,7 @@ func addContributeRoutes(
                     request, context, status: .tooManyRequests
                 )
             }
-            try database.submit(contribution.item, from: contribution.contributor)
+            try database.submit(contribution.item, from: contribution.contributor, picture: contribution.picture)
             return .redirect(to: "/contribute/thanks")
         } catch let problems as FormProblems {
             return html(

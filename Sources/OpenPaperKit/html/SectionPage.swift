@@ -9,14 +9,18 @@ package struct SectionPage: HTMLDocument {
     package let stories: [Story]
     package let agendaPoints: [AgendaPoint]
     package let quotedItems: [QuotedItem]
+    /// The stories' pictures, by story id.
+    package let pictures: [UUID: Picture]
 
     package init(
         metadata: EditionMetadata,
         section: PaperSection,
         stories: [Story],
         agendaPoints: [AgendaPoint],
-        quotedItems: [QuotedItem]
+        quotedItems: [QuotedItem],
+        pictures: [UUID: Picture] = [:]
     ) {
+        self.pictures = pictures
         self.metadata = metadata
         self.section = section
         self.stories = stories
@@ -47,7 +51,8 @@ package struct SectionPage: HTMLDocument {
                         StoryCard(placed: PlacedStory(
                             story: story,
                             columnSpan: 1,
-                            imageStyle: story.image != nil ? .thumbnail : .hidden
+                            imageStyle: pictures[story.id] != nil ? .thumbnail : .hidden,
+                            picture: pictures[story.id]
                         ))
                     }
 

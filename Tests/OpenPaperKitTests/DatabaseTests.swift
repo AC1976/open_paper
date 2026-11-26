@@ -10,17 +10,11 @@ import Testing
             title: title,
             summary: "Summary",
             slug: slug,
-            publishedAt: Date(timeIntervalSince1970: 1_700_000_000),
-            image: StoryImage(
-                source: .blob(data: Data([1, 2, 3]), mimeType: "image/png"),
-                altText: "alt",
-                caption: "cap",
-                credit: nil
-            )
+            publishedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
     }
 
-    @Test func storyRoundTripsWithImageAndBody() throws {
+    @Test func storyRoundTripsWithItsBody() throws {
         let db = try PaperDatabase()
         let story = sampleStory()
         #expect(try db.save(story, body: "Hello **world**") == .inserted)
@@ -30,10 +24,6 @@ import Testing
         #expect(loaded?.title == "A story")
         #expect(loaded?.priority == .high)
         #expect(loaded?.publishedAt == story.publishedAt)
-        guard case .blob(let data, let mime)? = loaded?.image?.source else {
-            Issue.record("image source lost"); return
-        }
-        #expect(data == Data([1, 2, 3]) && mime == "image/png")
         #expect(try db.body(ofStory: story.id) == "Hello **world**")
     }
 

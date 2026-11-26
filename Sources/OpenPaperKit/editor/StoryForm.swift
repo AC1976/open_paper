@@ -86,26 +86,47 @@ struct FormReader {
         return date
     }
 
-    /// The image the form describes: a chosen file, else an address, else the
-    /// uploaded image the item already had (unless "remove" is ticked). An image
-    /// given by address is not kept: the address field shows it, so clearing
-    /// the field removes it.
+    /// A chosen picture file, checked and cleaned; nil when none was chosen or
+    /// it is not acceptable (which is recorded as a problem).
+    private mutating func chosenImage() -> (data: Data, mimeType: String)? {
+        guard let file = form.file("imageFile") else { return nil }
+        guard file.data.count <= StoryForm.maxImageBytes else {
+            problems.append("The image is larger than \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
+            return nil
+        }
+        // The bytes decide what it is; location and camera data are removed.
+        guard let image = ImageCleaner.clean(file.data) else {
+            problems.append("The image must be a JPEG, PNG or WebP file.")
+            return nil
+        }
+        return image
+    }
+
+    /// What the story form asks for its picture: remove it, a new file, new
+    /// words for the current one, or nothing.
+    mutating func pictureChange(hasPicture: Bool) -> PictureChange {
+        if form.text("removeImage") != nil { return .remove }
+        let chosen = chosenImage()
+        guard chosen != nil || hasPicture else { return .unchanged }
+        guard let alt = form.text("altText") else {
+            problems.append("Alt text is required when the story has an image.")
+            return .unchanged
+        }
+        let text = PictureText(altText: alt, caption: form.text("caption"), credit: form.text("credit"))
+        if let chosen { return .replace(NewPicture(data: chosen.data, mimeType: chosen.mimeType, text: text)) }
+        return .describe(text)
+    }
+
+    /// An advertisement's image: a chosen file, else an address, else the
+    /// uploaded image it already had.
     mutating func imageSource(keeping existing: ImageSource?) -> ImageSource? {
-        if form.text("removeImage") != nil { return nil }
-        if let file = form.file("imageFile") {
-            guard file.data.count <= StoryForm.maxImageBytes else {
-                problems.append("The image is larger than \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
-                return existing
-            }
-            // The bytes decide what it is; location and camera data are removed.
-            guard let image = ImageCleaner.clean(file.data) else {
-                problems.append("The image must be a JPEG, PNG or WebP file.")
-                return existing
-            }
-            return .blob(data: image.data, mimeType: image.mimeType)
+        if form.file("imageFile") != nil {
+            return chosenImage().map { .blob(data: $0.data, mimeType: $0.mimeType) } ?? existing
         }
         if let url = form.text("image.source.endpoint.url") { return .endpoint(url: url) }
+        // A stored picture is not shown as an address in the form, so keep it.
         if case .blob? = existing { return existing }
+        if case .endpoint(let url)? = existing, url.hasPrefix("/images/") { return existing }
         return nil
     }
 
@@ -123,9 +144,11 @@ package enum StoryForm {
 
     package typealias Problems = FormProblems
 
-    /// `existing` is the story being edited; its stored image is kept when the
-    /// form does not choose a new one.
-    package static func story(from form: MultipartForm, keeping existing: Story? = nil) throws -> (story: Story, body: String) {
+    /// `existing` is the story being edited; `hasPicture` says whether it has a
+    /// picture, which is then kept unless the form replaces or removes it.
+    package static func story(
+        from form: MultipartForm, keeping existing: Story? = nil, hasPicture: Bool = false
+    ) throws -> (story: Story, body: String, picture: PictureChange) {
         var reader = FormReader(form)
 
         let title = reader.required("title", "Title")
@@ -143,14 +166,7 @@ package enum StoryForm {
         let publishedAt = form.rawText("publishedAt") == nil ? existing?.publishedAt : reader.date("publishedAt", "Published")
         let updatedAt = form.rawText("updatedAt") == nil ? existing?.updatedAt : reader.date("updatedAt", "Updated")
 
-        var image: StoryImage?
-        if let source = reader.imageSource(keeping: existing?.image?.source) {
-            if let alt = form.text("image.altText") {
-                image = StoryImage(source: source, altText: alt, caption: form.text("image.caption"), credit: form.text("image.credit"))
-            } else {
-                reader.problems.append("Alt text is required when the story has an image.")
-            }
-        }
+        let picture = reader.pictureChange(hasPicture: hasPicture)
 
         if let slug = form.text("slug"), slug.contains(where: { !($0.isLetter || $0.isNumber || $0 == "-") }) {
             reader.problems.append("Slug may only contain letters, numbers and hyphens.")
@@ -169,10 +185,9 @@ package enum StoryForm {
             slug: slug,
             publishedAt: publishedAt,
             updatedAt: updatedAt,
-            author: form.text("author"),
-            image: image
+            author: form.text("author")
         )
-        return (story, form.rawText("body") ?? "")
+        return (story, form.rawText("body") ?? "", picture)
     }
 }
 
@@ -208,8 +223,7 @@ package enum ItemForm {
         let priority = form.text("priority").flatMap(Int.init).flatMap(StoryPriority.init(rawValue:))
         if priority == nil { reader.problems.append("Choose a priority.") }
 
-        var source = reader.imageSource(keeping: existing?.imageSource)
-        if form.text("removeImage") != nil { source = existing?.imageSource }   // an advertisement always has an image
+        let source = reader.imageSource(keeping: existing?.imageSource)
         if source == nil { reader.problems.append("An image is required: choose a file or give an address.") }
 
         try reader.finish()

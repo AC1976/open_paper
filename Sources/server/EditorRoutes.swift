@@ -100,7 +100,8 @@ func addEditorRoutes(to router: some RouterMethods<AppRequestContext>, database:
             filing: Filing(
                 status: entry.status, publishDate: entry.publishDate,
                 suggestedDate: EditorDates.today(), contributor: entry.contributor
-            )
+            ),
+            picture: try database.picture(ofItem: id)
         )
     }
     addItemRoutes(to: router, prefix: "/editor/items/:id", database: database, resolve: savedItem)
@@ -183,15 +184,19 @@ private struct ItemTarget: Sendable {
     let stagedID: UUID?
     /// Set when the item is saved, so it can be filed.
     var filing: Filing? = nil
+    /// A story's current picture.
+    var picture: Picture? = nil
 }
 
 /// Validates the submitted fields and saves the item.
 private func save(_ form: MultipartForm, for target: ItemTarget, in database: PaperDatabase) throws {
     let edited: ParsedUpload
+    var picture = PictureChange.unchanged
     switch target.original {
     case .story(let original, _, _):
-        let (story, body) = try StoryForm.story(from: form, keeping: original)
-        edited = .story(story, markdown: body, html: "")
+        let result = try StoryForm.story(from: form, keeping: original, hasPicture: target.picture != nil)
+        edited = .story(result.story, markdown: result.body, html: "")
+        picture = result.picture
     case .agendaPoint:
         edited = .agendaPoint(try ItemForm.agendaPoint(from: form))
     case .quotedItem:
@@ -201,9 +206,10 @@ private func save(_ form: MultipartForm, for target: ItemTarget, in database: Pa
     }
     // An upload becomes a new item; only an edit page changes an existing one.
     if let staged = target.stagedID {
-        try database.submit(edited, discarding: staged)
+        let new: NewPicture? = if case .replace(let chosen) = picture { chosen } else { nil }
+        try database.submit(edited, picture: new, discarding: staged)
     } else {
-        try database.update(edited, id: target.original.id)
+        try database.update(edited, id: target.original.id, picture: picture)
     }
 }
 
@@ -237,12 +243,12 @@ private func addItemRoutes(
         }
         let form = try await readForm(request)
         do {
-            let (story, body) = try StoryForm.story(from: form, keeping: original)
+            let result = try StoryForm.story(from: form, keeping: original, hasPicture: target.picture != nil)
             return try page(
                 of: ReviewCard(
-                    story: story, markdown: body, bodyHTML: markdownToHTML(body),
+                    story: result.story, markdown: result.body, bodyHTML: markdownToHTML(result.body),
                     actionBase: target.base, heading: target.heading, backHref: target.returnTo,
-                    filing: target.filing
+                    filing: target.filing, picture: result.picture.applied(to: target.picture)
                 ),
                 request, context
             )
@@ -270,7 +276,8 @@ private func render(
         return try page(
             of: ReviewCard(
                 story: story, markdown: markdown, bodyHTML: html, actionBase: target.base,
-                problems: problems, heading: target.heading, backHref: target.returnTo, filing: target.filing
+                problems: problems, heading: target.heading, backHref: target.returnTo, filing: target.filing,
+                picture: target.picture
             ),
             request, context, status: status
         )

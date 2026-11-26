@@ -7,6 +7,8 @@ package struct PublishedItems: Sendable {
     package let stories: [Story]
     package let agendaPoints: [AgendaPoint]
     package let quotedItems: [QuotedItem]
+    /// The stories' pictures, by story id.
+    package let pictures: [UUID: Picture]
 }
 
 extension PaperDatabase {
@@ -22,10 +24,12 @@ extension PaperDatabase {
                     ORDER BY \(orderBy), i.uploadedAt DESC, i.rowid DESC
                     """, arguments: [today])
             }
+            let stories = try load(Story.self, orderBy: "i.publishDate DESC")
             return PublishedItems(
-                stories: try load(Story.self, orderBy: "i.publishDate DESC"),
+                stories: stories,
                 agendaPoints: try load(AgendaPoint.self, orderBy: "COALESCE(t.eventDate, i.publishDate) DESC"),
-                quotedItems: try load(QuotedItem.self, orderBy: "i.publishDate DESC")
+                quotedItems: try load(QuotedItem.self, orderBy: "i.publishDate DESC"),
+                pictures: try Self.pictures(of: stories.map(\.id), in: db)
             )
         }
     }
@@ -34,7 +38,7 @@ extension PaperDatabase {
     /// for unknown slugs and for anything not filed for today or earlier.
     package func publishedStory(
         slug: String, asOf today: String = EditorDates.today()
-    ) throws -> (story: Story, markdown: String, publishDate: String)? {
+    ) throws -> (story: Story, markdown: String, publishDate: String, picture: Picture?)? {
         try queue.read { db in
             guard let row = try Row.fetchOne(db, sql: """
                 SELECT s.*, i.publishDate AS filedFor FROM stories s
@@ -42,7 +46,8 @@ extension PaperDatabase {
                 WHERE s.slug = ? AND i.status = 'filed' AND i.publishDate <= ?
                 """, arguments: [slug, today])
             else { return nil }
-            return (try Story(row: row), row["body"] ?? "", row["filedFor"])
+            let story = try Story(row: row)
+            return (story, row["body"] ?? "", row["filedFor"], try Self.pictures(of: [story.id], in: db)[story.id])
         }
     }
 }

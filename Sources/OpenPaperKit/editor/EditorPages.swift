@@ -163,11 +163,12 @@ private struct DeskTable: HTML {
 package struct StoryPreview: HTML {
     package let story: Story
     package let bodyHTML: String
+    package var picture: Picture? = nil
 
     package var body: some HTML {
         h2(.class("preview-label")) { "Front page" }
         div(.class("preview-frame broadsheet mode-prominent")) {
-            StoryCard(placed: PlacedStory(story: story, columnSpan: 2, imageStyle: .standardLead))
+            StoryCard(placed: PlacedStory(story: story, columnSpan: 2, imageStyle: .standardLead, picture: picture))
         }
 
         h2(.class("preview-label")) { "Article page" }

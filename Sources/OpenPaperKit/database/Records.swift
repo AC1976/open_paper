@@ -6,7 +6,8 @@ import GRDB
 //
 // - Column names are the property names.
 // - Ids are stored as upper-case text (readable in the `sqlite3` shell).
-// - Nested values (`image`, `imageSource`) are stored as JSON text.
+// - Nested values (`imageSource`) are stored as JSON text. Story pictures are
+//   not part of the model; see `Images.swift`.
 // - `stories.body` (the markdown) is not a model property; see `PaperDatabase`.
 
 extension Story: FetchableRecord, PersistableRecord {
@@ -43,8 +44,7 @@ extension Story {
             slug: newSlug ?? slug,
             publishedAt: publishedAt,
             updatedAt: updatedAt,
-            author: author,
-            image: image
+            author: author
         )
     }
 }

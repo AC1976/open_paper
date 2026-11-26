@@ -64,22 +64,42 @@ package struct StagedUpload: Sendable, Equatable {
 /// is one transaction.
 package final class PaperDatabase: Sendable {
     package let queue: DatabaseQueue
+    /// Where the picture files are.
+    package let images: ImageFiles
 
-    package init(path: String) throws {
+    /// The pictures go in `imageDirectory`, by default a folder next to the
+    /// database: `open_paper.sqlite` → `open_paper-images/`.
+    package init(path: String, imageDirectory: URL? = nil) throws {
         queue = try DatabaseQueue(path: path)
-        try Self.migrator.migrate(queue)
+        let file = URL(fileURLWithPath: path)
+        images = ImageFiles(directory: imageDirectory
+            ?? file.deletingPathExtension().deletingLastPathComponent()
+                .appendingPathComponent(file.deletingPathExtension().lastPathComponent + "-images"))
+        let migrator = Self.migrator(images: images)
+        try Self.backUpBeforeMovingImages(queue, path: path, migrator: migrator)
+        try migrator.migrate(queue)
     }
 
     package init() throws {
         queue = try DatabaseQueue()   // in memory, for tests
-        try Self.migrator.migrate(queue)
+        images = ImageFiles(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-paper-test-\(UUID().uuidString)"))
+        try Self.migrator(images: images).migrate(queue)
+    }
+
+    /// Moving the pictures rewrites rows, so an existing database is copied first.
+    private static func backUpBeforeMovingImages(_ queue: DatabaseQueue, path: String, migrator: DatabaseMigrator) throws {
+        let applied = try queue.read { try migrator.appliedIdentifiers($0) }
+        let backup = path + ".before-images.sqlite"
+        guard !applied.isEmpty, !applied.contains("v7-image-files"), !FileManager.default.fileExists(atPath: backup) else { return }
+        try queue.backup(to: try DatabaseQueue(path: backup))
     }
 
     // MARK: Migrations
     //
     // Never edit a migration that has shipped; add a new one.
 
-    static var migrator: DatabaseMigrator {
+    static func migrator(images: ImageFiles) -> DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
         migrator.registerMigration("v1") { db in
@@ -205,6 +225,19 @@ package final class PaperDatabase: Sendable {
             }
         }
 
+        migrator.registerMigration("v7-image-files") { db in
+            try db.create(table: "images") { t in
+                t.column("id", .text).primaryKey()
+                t.column("itemId", .text).notNull().unique().references("items", onDelete: .cascade)
+                t.column("mimeType", .text).notNull()
+                t.column("altText", .text).notNull()
+                t.column("caption", .text)
+                t.column("credit", .text)
+                t.column("createdAt", .datetime).notNull()
+            }
+            try moveImagesToFiles(db, images)
+        }
+
         return migrator
     }
 
@@ -214,8 +247,10 @@ package final class PaperDatabase: Sendable {
     /// `id`. A slug that belongs to another story is refused. (New uploads go
     /// through `submit`, which never changes an existing item.)
     @discardableResult
-    package func save(_ story: Story, body: String, discarding stagedID: UUID? = nil) throws -> SaveOutcome {
-        try queue.write { db in
+    package func save(
+        _ story: Story, body: String, picture: PictureChange = .unchanged, discarding stagedID: UUID? = nil
+    ) throws -> SaveOutcome {
+        try writeWithImages { db, changes in
             let clash = try Int.fetchOne(
                 db, sql: "SELECT COUNT(*) FROM stories WHERE slug = ? AND id <> ?",
                 arguments: [story.slug, story.id.uuidString]
@@ -224,6 +259,7 @@ package final class PaperDatabase: Sendable {
             let isNew = try Self.register(story.id, kind: .story, in: db)
             try story.save(db)
             try db.execute(sql: "UPDATE stories SET body = ? WHERE id = ?", arguments: [body, story.id.uuidString])
+            try apply(picture, to: story.id, in: db, changes)
             try Self.discard(stagedID, in: db)
             return isNew ? .inserted : .updated
         }
@@ -251,9 +287,9 @@ package final class PaperDatabase: Sendable {
 
     @discardableResult
     package func save(_ ad: Advertisement, discarding stagedID: UUID? = nil) throws -> SaveOutcome {
-        try queue.write { db in
+        try writeWithImages { db, changes in
             let isNew = try Self.register(ad.id, kind: .advertisement, in: db)
-            try ad.save(db)
+            try storingImage(of: ad, in: db, changes).save(db)
             try Self.discard(stagedID, in: db)
             return isNew ? .inserted : .updated
         }

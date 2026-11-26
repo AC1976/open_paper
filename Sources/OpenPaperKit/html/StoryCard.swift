@@ -11,10 +11,10 @@ package struct StoryCard: HTML {
 
         article(.class("story-card category-\(story.category.rawValue) \(priorityClass) span-\(placed.columnSpan) image-\(placed.imageStyle.rawValue)")) {
             // 1. Render photo only if present and not hidden by layout rules
-            if let image = story.image, placed.imageStyle != .hidden {
+            if let image = placed.picture, placed.imageStyle != .hidden {
                 figure(.class("story-figure")) {
                     img(
-                        .src(image.source.htmlSrc),
+                        .src(image.src),
                         .alt(image.altText),
                         .class("story-image"),
                         .custom(name: "loading", value: "lazy")

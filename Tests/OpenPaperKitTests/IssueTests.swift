@@ -4,10 +4,7 @@ import Testing
 @testable import OpenPaperKit
 
 private func story(_ slug: String, priority: StoryPriority = .normal) -> Story {
-    Story(
-        category: .news, priority: priority, title: slug.capitalized, summary: "s", slug: slug,
-        image: StoryImage(source: .blob(data: Data([9, 8]), mimeType: "image/png"), altText: "a", caption: nil, credit: nil)
-    )
+    Story(category: .news, priority: priority, title: slug.capitalized, summary: "s", slug: slug)
 }
 
 @Suite struct FilingTests {
@@ -78,8 +75,6 @@ private func story(_ slug: String, priority: StoryPriority = .normal) -> Story {
 
         let issue = try db.issue(on: "2026-11-20")
         #expect(issue.stories.map(\.id) == [s.id])
-        guard case .blob(let data, _)? = issue.stories.first?.image?.source else { Issue.record("image lost"); return }
-        #expect(data == Data([9, 8]))
         #expect(issue.agendaPoints.first?.eventDate == agenda.eventDate)
         #expect(issue.quotedItems.first?.speaker == "Lindeman")
         #expect(issue.advertisements.first?.priority == .high)
@@ -144,7 +139,8 @@ private func story(_ slug: String, priority: StoryPriority = .normal) -> Story {
 @Suite struct PublishDateMigrationTests {
     @Test func publishedItemsAreFiledWithTheirFirstPublishedDate() throws {
         let queue = try DatabaseQueue()
-        try PaperDatabase.migrator.migrate(queue, upTo: "v4-editors")
+        let files = ImageFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        try PaperDatabase.migrator(images: files).migrate(queue, upTo: "v4-editors")
         try queue.write { db in
             for id in ["live", "draft", "loose"] {
                 try db.execute(sql: "INSERT INTO items (id, kind, uploadedAt) VALUES (?, 'story', ?)", arguments: [id, Date()])
@@ -157,7 +153,7 @@ private func story(_ slug: String, priority: StoryPriority = .normal) -> Story {
                 """)
         }
 
-        try PaperDatabase.migrator.migrate(queue)
+        try PaperDatabase.migrator(images: files).migrate(queue)
 
         let rows = try queue.read { db in
             try Row.fetchAll(db, sql: "SELECT id, status, publishDate FROM items ORDER BY id")

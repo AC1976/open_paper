@@ -185,10 +185,11 @@ extension PaperDatabase {
     /// number added to it.
     @discardableResult
     package func submit(
-        _ parsed: ParsedUpload, from contributor: Contributor? = nil, discarding stagedID: UUID? = nil
+        _ parsed: ParsedUpload, from contributor: Contributor? = nil,
+        picture: NewPicture? = nil, discarding stagedID: UUID? = nil
     ) throws -> UUID {
         let id = UUID()
-        try queue.write { db in
+        try writeWithImages { db, changes in
             try Self.register(id, kind: parsed.kind, in: db)
             switch parsed {
             case .story(let story, let markdown, _):
@@ -200,15 +201,17 @@ extension PaperDatabase {
                 }
                 try story.with(id: id, slug: slug).insert(db)
                 try db.execute(sql: "UPDATE stories SET body = ? WHERE id = ?", arguments: [markdown, id.uuidString])
+                if let picture { try setPicture(picture, of: id, in: db, changes) }
             case .agendaPoint(let p):
                 try AgendaPoint(id: id, subject: p.subject, place: p.place, link: p.link, summary: p.summary, eventDate: p.eventDate).insert(db)
             case .quotedItem(let q):
                 try QuotedItem(id: id, quote: q.quote, speaker: q.speaker, context: q.context, sourceLink: q.sourceLink).insert(db)
             case .advertisement(let a):
-                try Advertisement(
+                let ad = Advertisement(
                     id: id, sponsorName: a.sponsorName, imageSource: a.imageSource,
                     altText: a.altText, targetURL: a.targetURL, priority: a.priority
-                ).insert(db)
+                )
+                try storingImage(of: ad, in: db, changes).insert(db)
             }
             if let contributor {
                 try db.execute(
@@ -223,11 +226,11 @@ extension PaperDatabase {
 
     /// Saves an editor's changes to the item `id`. The id comes from the page
     /// being edited, so a changed form field cannot redirect the save.
-    package func update(_ edited: ParsedUpload, id: UUID) throws {
+    package func update(_ edited: ParsedUpload, id: UUID, picture: PictureChange = .unchanged) throws {
         guard try entry(id)?.kind == edited.kind else { throw SaveError.noSuchItem }
         switch edited {
         case .story(let story, let markdown, _):
-            try save(story.with(id: id), body: markdown)
+            try save(story.with(id: id), body: markdown, picture: picture)
         case .agendaPoint(let p):
             try save(AgendaPoint(id: id, subject: p.subject, place: p.place, link: p.link, summary: p.summary, eventDate: p.eventDate))
         case .quotedItem(let q):

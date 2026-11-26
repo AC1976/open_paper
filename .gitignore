@@ -11,3 +11,6 @@ DerivedData/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+
+# Uploaded pictures
+*-images/

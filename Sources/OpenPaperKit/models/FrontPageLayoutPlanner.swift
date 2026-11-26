@@ -46,6 +46,14 @@ package struct PlacedStory {
     package let story: Story
     package let columnSpan: Int
     package let imageStyle: ImageDisplayStyle
+    package let picture: Picture?
+
+    package init(story: Story, columnSpan: Int, imageStyle: ImageDisplayStyle, picture: Picture? = nil) {
+        self.story = story
+        self.columnSpan = columnSpan
+        self.imageStyle = imageStyle
+        self.picture = picture
+    }
 }
 
 package struct FrontPageLayoutPlan {
@@ -62,7 +70,8 @@ package struct FrontPageLayoutPlan {
         stories: [Story],
         agendaPoints: [AgendaPoint] = [],
         quotedItems: [QuotedItem] = [],
-        advertisements: [Advertisement] = []
+        advertisements: [Advertisement] = [],
+        pictures: [UUID: Picture] = [:]
     ) {
         self.mode = mode
         self.agendaPoints = agendaPoints
@@ -82,15 +91,16 @@ package struct FrontPageLayoutPlan {
             let leadPlaced = PlacedStory(
                 story: first,
                 columnSpan: mode.leadColumnSpan,
-                imageStyle: leadImageStyle
+                imageStyle: leadImageStyle,
+                picture: pictures[first.id]
             )
 
             if mode == .breaking {
                 self.breakingBanner = leadPlaced
-                self.editorialStories = Self.assignEditorialSlots(editorialPool)
+                self.editorialStories = Self.assignEditorialSlots(editorialPool, pictures)
             } else {
                 self.breakingBanner = nil
-                self.editorialStories = [leadPlaced] + Self.assignEditorialSlots(editorialPool)
+                self.editorialStories = [leadPlaced] + Self.assignEditorialSlots(editorialPool, pictures)
             }
         } else {
             self.breakingBanner = nil
@@ -98,17 +108,18 @@ package struct FrontPageLayoutPlan {
         }
     }
 
-    private static func assignEditorialSlots(_ remaining: [Story]) -> [PlacedStory] {
+    private static func assignEditorialSlots(_ remaining: [Story], _ pictures: [UUID: Picture]) -> [PlacedStory] {
         remaining.enumerated().map { index, story in
             let style: ImageDisplayStyle
-            if story.priority == .high && story.image != nil {
+            let picture = pictures[story.id]
+            if story.priority == .high && picture != nil {
                 style = .standardLead
-            } else if index < 4 && story.image != nil {
+            } else if index < 4 && picture != nil {
                 style = .thumbnail
             } else {
                 style = .hidden
             }
-            return PlacedStory(story: story, columnSpan: 1, imageStyle: style)
+            return PlacedStory(story: story, columnSpan: 1, imageStyle: style, picture: picture)
         }
     }
 }
