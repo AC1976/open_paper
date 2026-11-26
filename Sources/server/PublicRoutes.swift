@@ -12,7 +12,7 @@ import OpenPaperKit
 ///     GET /sections/{name}  everything published in a section, newest first:
 ///                           news, background, opinion, agenda or quoted
 ///     GET /articles/{slug}  a published story
-func addPublicRoutes(to router: Router<BasicRequestContext>, database: PaperDatabase) {
+func addPublicRoutes(to router: Router<AppRequestContext>, database: PaperDatabase) {
     addSectionRoutes(to: router, database: database)
     addArticleRoutes(to: router, database: database)
 
@@ -38,7 +38,7 @@ func addPublicRoutes(to router: Router<BasicRequestContext>, database: PaperData
 
 /// The page behind every headline: `/articles/{slug}`. Only stories filed for
 /// today or earlier can be read.
-private func addArticleRoutes(to router: Router<BasicRequestContext>, database: PaperDatabase) {
+private func addArticleRoutes(to router: Router<AppRequestContext>, database: PaperDatabase) {
     router.get("/articles/:slug") { request, context -> Response in
         let slug = try context.parameters.require("slug")
         guard let (story, markdown, publishDate) = try database.publishedStory(slug: slug),
@@ -61,7 +61,7 @@ private func addArticleRoutes(to router: Router<BasicRequestContext>, database: 
 }
 
 /// The route for each section is the one the masthead links to (`PaperSection.href`).
-private func addSectionRoutes(to router: Router<BasicRequestContext>, database: PaperDatabase) {
+private func addSectionRoutes(to router: Router<AppRequestContext>, database: PaperDatabase) {
     router.get("/sections/:name") { request, context -> Response in
         let name = try context.parameters.require("name")
         guard let section = PaperSection(rawValue: name) else {
@@ -86,7 +86,7 @@ private func addSectionRoutes(to router: Router<BasicRequestContext>, database: 
 }
 
 /// The front page of an issue. The editor also uses this to preview drafts.
-func frontPage(_ issue: IssueContents, _ request: Request, _ context: BasicRequestContext) -> Response {
+func frontPage(_ issue: IssueContents, _ request: Request, _ context: AppRequestContext) -> Response {
     let page = NYTFrontPage(metadata: issue.metadata, plan: issue.plan)
     return HTMLResponse { page }.response(from: request, context: context)
 }

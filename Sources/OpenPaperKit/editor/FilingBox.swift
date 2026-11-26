@@ -6,8 +6,10 @@ package struct Filing: Sendable {
     package let publishDate: String?
     /// Offered when the item has no date yet.
     package let suggestedDate: String
+    package let contributor: Contributor?
 
-    package init(status: ItemStatus, publishDate: String?, suggestedDate: String) {
+    package init(status: ItemStatus, publishDate: String?, suggestedDate: String, contributor: Contributor? = nil) {
+        self.contributor = contributor
         self.status = status
         self.publishDate = publishDate
         self.suggestedDate = suggestedDate
@@ -23,6 +25,12 @@ struct FilingBox: HTML {
     var body: some HTML {
         fieldset(.class("filing")) {
             legend { "Filing" }
+            if let contributor = filing.contributor {
+                p(.class("status")) {
+                    "Sent in by \(contributor.name), "
+                    a(.href("mailto:\(contributor.email)")) { contributor.email }
+                }
+            }
             p(.class("status")) {
                 switch filing.status {
                 case .submitted: "On the news desk. Not in the paper yet."

@@ -11,8 +11,8 @@ private let sessionCookie = "editor_session"
 struct SameOriginOnly: RouterMiddleware {
     func handle(
         _ request: Request,
-        context: BasicRequestContext,
-        next: (Request, BasicRequestContext) async throws -> Response
+        context: AppRequestContext,
+        next: (Request, AppRequestContext) async throws -> Response
     ) async throws -> Response {
         if request.method != .get && request.method != .head {
             let allowed = RequestChecks.isSameOrigin(
@@ -39,8 +39,8 @@ struct SignedInOnly: RouterMiddleware {
 
     func handle(
         _ request: Request,
-        context: BasicRequestContext,
-        next: (Request, BasicRequestContext) async throws -> Response
+        context: AppRequestContext,
+        next: (Request, AppRequestContext) async throws -> Response
     ) async throws -> Response {
         if let token = request.cookies[sessionCookie]?.value, try database.editor(forSession: token) != nil {
             return try await next(request, context)
@@ -60,14 +60,14 @@ struct SignedInOnly: RouterMiddleware {
 ///
 /// `secureCookie` must be true whenever the editor is reached over HTTPS.
 func addLoginRoutes(
-    to router: some RouterMethods<BasicRequestContext>,
+    to router: some RouterMethods<AppRequestContext>,
     database: PaperDatabase,
     secureCookie: Bool
 ) {
     let throttle = LoginThrottle()
 
     @Sendable func loginPage(
-        _ page: LoginPage, _ request: Request, _ context: BasicRequestContext, status: HTTPResponse.Status = .ok
+        _ page: LoginPage, _ request: Request, _ context: AppRequestContext, status: HTTPResponse.Status = .ok
     ) -> Response {
         HTMLResponse(status: status) { page }.response(from: request, context: context)
     }

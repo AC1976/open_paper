@@ -140,6 +140,7 @@ package struct NoIssuePage: HTMLDocument {
         main(.class("editor-main")) {
             h1 { "Het Grootboek" }
             p(.class("empty")) { "Nothing has been published yet." }
+            p { a(.href("/contribute")) { "Send us a story, an agenda point or a quote" } }
             p { a(.href("/editor")) { "Editor: go to the news desk" } }
         }
     }

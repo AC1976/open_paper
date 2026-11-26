@@ -5,7 +5,7 @@ import HummingbirdElementary
 import OpenPaperKit
 
 /// Largest upload request the editor accepts (a markdown file plus one image).
-private let maxRequestBytes = 8 * 1024 * 1024
+let maxRequestBytes = 8 * 1024 * 1024
 
 /// The editor.
 ///
@@ -27,7 +27,7 @@ private let maxRequestBytes = 8 * 1024 * 1024
 ///     POST {prefix}           save
 ///     POST {prefix}/preview   re-render a story with the edited fields (not saved)
 ///     POST {prefix}/cancel    discard the upload / leave the edit
-func addEditorRoutes(to router: some RouterMethods<BasicRequestContext>, database: PaperDatabase) {
+func addEditorRoutes(to router: some RouterMethods<AppRequestContext>, database: PaperDatabase) {
 
     // MARK: Home and uploads
 
@@ -86,7 +86,7 @@ func addEditorRoutes(to router: some RouterMethods<BasicRequestContext>, databas
     }
 
     // A saved item. Save and Cancel go back to where it lives now.
-    let savedItem: @Sendable (BasicRequestContext) throws -> ItemTarget = { context in
+    let savedItem: @Sendable (AppRequestContext) throws -> ItemTarget = { context in
         let id = try context.parameters.require("id", as: UUID.self)
         guard let item = try database.item(id), let entry = try database.entry(id) else {
             throw HTTPError(.notFound, message: "This item was not found.")
@@ -97,7 +97,10 @@ func addEditorRoutes(to router: some RouterMethods<BasicRequestContext>, databas
             heading: "Edit \(item.kind.label.lowercased())",
             original: item,
             stagedID: nil,
-            filing: Filing(status: entry.status, publishDate: entry.publishDate, suggestedDate: EditorDates.today())
+            filing: Filing(
+                status: entry.status, publishDate: entry.publishDate,
+                suggestedDate: EditorDates.today(), contributor: entry.contributor
+            )
         )
     }
     addItemRoutes(to: router, prefix: "/editor/items/:id", database: database, resolve: savedItem)
@@ -205,10 +208,10 @@ private func save(_ form: MultipartForm, for target: ItemTarget, in database: Pa
 }
 
 private func addItemRoutes(
-    to router: some RouterMethods<BasicRequestContext>,
+    to router: some RouterMethods<AppRequestContext>,
     prefix: String,
     database: PaperDatabase,
-    resolve: @escaping @Sendable (BasicRequestContext) throws -> ItemTarget
+    resolve: @escaping @Sendable (AppRequestContext) throws -> ItemTarget
 ) {
     router.get(RouterPath(prefix)) { request, context -> Response in
         try render(try resolve(context), request, context)
@@ -258,7 +261,7 @@ private func addItemRoutes(
 private func render(
     _ target: ItemTarget,
     _ request: Request,
-    _ context: BasicRequestContext,
+    _ context: AppRequestContext,
     problems: [String] = []
 ) throws -> Response {
     let status: HTTPResponse.Status = problems.isEmpty ? .ok : .unprocessableContent
@@ -284,7 +287,7 @@ private func render(
 
 // MARK: - Helpers
 
-private func issueDate(_ context: BasicRequestContext) throws -> String {
+private func issueDate(_ context: AppRequestContext) throws -> String {
     let date = try context.parameters.require("date")
     guard EditorDates.parseDay(date) != nil else {
         throw HTTPError(.notFound, message: "There is no issue with that date.")
@@ -310,13 +313,13 @@ private func homePage(_ database: PaperDatabase, problems: [String] = []) throws
     )
 }
 
-func readForm(_ request: Request) async throws -> MultipartForm {
+func readForm(_ request: Request, limit: Int = maxRequestBytes) async throws -> MultipartForm {
     var request = request
     let body: ByteBuffer
     do {
-        body = try await request.collectBody(upTo: maxRequestBytes)
+        body = try await request.collectBody(upTo: limit)
     } catch {
-        throw HTTPError(.contentTooLarge, message: "The upload is larger than \(maxRequestBytes / 1024 / 1024) MB.")
+        throw HTTPError(.contentTooLarge, message: "What was sent is too large.")
     }
     do {
         return try MultipartForm(body: Data(body.readableBytesView), contentType: request.headers[.contentType])
@@ -328,7 +331,7 @@ func readForm(_ request: Request) async throws -> MultipartForm {
 private func page(
     of html: some HTML & Sendable,
     _ request: Request,
-    _ context: BasicRequestContext,
+    _ context: AppRequestContext,
     status: HTTPResponse.Status = .ok
 ) throws -> Response {
     HTMLResponse(status: status) { html }.response(from: request, context: context)

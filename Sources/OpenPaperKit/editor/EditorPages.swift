@@ -136,14 +136,21 @@ private struct DeskTable: HTML {
     var body: some HTML {
         table(.class("item-table")) {
             thead {
-                tr { th { "Title" }; th { "Type" }; th { "Author" }; th { dateHeading } }
+                tr { th { "Title" }; th { "Type" }; th { "Contributor" }; th { dateHeading } }
             }
             tbody {
                 for entry in entries {
                     tr {
                         td { a(.href("/editor/items/\(entry.id.uuidString)")) { entry.title } }
                         td { entry.kind.label }
-                        td { entry.author ?? "—" }
+                        td {
+                            if let contributor = entry.contributor {
+                                contributor.name
+                                a(.href("mailto:\(contributor.email)"), .class("contributor-email")) { contributor.email }
+                            } else {
+                                entry.author ?? "—"
+                            }
+                        }
                         td { entry.publishDate.map(EditorDates.longDay) ?? EditorDates.display(entry.uploadedAt) }
                     }
                 }

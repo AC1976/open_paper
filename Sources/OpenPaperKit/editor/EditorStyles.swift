@@ -23,6 +23,17 @@ package enum EditorStyles {
     .filing .actions { margin-bottom: 0; flex-wrap: wrap; }
     .editor-main details { margin-top: 2rem; }
     .editor-main summary { cursor: pointer; font-size: 0.95rem; margin-bottom: 0.6rem; }
+    .contributor-email { display: block; font-size: 0.8rem; }
+
+    /* Contribute pages */
+    .contribute-intro { grid-column: 1 / -1; }
+    .contribute-intro p { font-size: 0.95rem; color: var(--ink-secondary); max-width: 60ch; }
+    .kind-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+    .kind-tabs a { text-decoration: none; }
+    .kind-tabs a[aria-current] { background: var(--ink-primary); border-color: var(--ink-primary); color: #fff; }
+    .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .privacy { font-size: 0.8rem; color: var(--ink-secondary); margin: 0 0 1rem; max-width: 60ch; }
+    .thumbnail { display: block; max-width: 160px; max-height: 120px; margin-top: 0.5rem; border-radius: 4px; }
     .editor-logout { margin: 0; }
     .editor-logout button { background: none; border: none; padding: 0; font: inherit; font-size: 0.9rem; cursor: pointer; }
     .login { max-width: 420px; margin: 3rem auto; padding: 0 1rem; }

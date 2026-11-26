@@ -144,7 +144,7 @@ extension PaperDatabase {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    private static func normalised(email: String) throws -> String {
+    static func normalised(email: String) throws -> String {
         let email = lowercased(email)
         let parts = email.split(separator: "@", omittingEmptySubsequences: false)
         guard parts.count == 2, !parts[0].isEmpty, parts[1].contains("."),

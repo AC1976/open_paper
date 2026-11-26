@@ -27,6 +27,7 @@ package struct Masthead: HTML {
                         section.displayTitle
                     }
                 }
+                a(.href("/contribute"), .class("nav-link nav-contribute")) { "Contribute" }
             }
         }
     }

@@ -22,8 +22,11 @@ package struct DeskEntry: Sendable, Equatable {
     package let id: UUID
     package let kind: ItemKind
     package let title: String
-    /// Only stories carry an author so far.
+    /// The story's byline.
     package let author: String?
+    /// Who sent it in through the contribute pages; nil for editors' uploads.
+    /// The email address is for editors only and is never published.
+    package let contributor: Contributor?
     package let uploadedAt: Date
     package let status: ItemStatus
     /// "yyyy-MM-dd"; set exactly when the item is filed.
@@ -195,6 +198,13 @@ package final class PaperDatabase: Sendable {
                 """)
         }
 
+        migrator.registerMigration("v6-contributors") { db in
+            try db.alter(table: "items") { t in
+                t.add(column: "contributorName", .text)
+                t.add(column: "contributorEmail", .text)
+            }
+        }
+
         return migrator
     }
 
@@ -305,6 +315,7 @@ package final class PaperDatabase: Sendable {
         try queue.read { db in
             let rows = try Row.fetchAll(db, sql: """
                 SELECT i.id, i.kind, i.uploadedAt, i.status, i.publishDate, s.author,
+                       i.contributorName, i.contributorEmail,
                        COALESCE(s.title, a.subject, q.speaker, ad.sponsorName) AS title
                 FROM items i
                 LEFT JOIN stories s ON s.id = i.id
@@ -319,8 +330,12 @@ package final class PaperDatabase: Sendable {
                       let kind = ItemKind(rawValue: row["kind"]),
                       let status = ItemStatus(rawValue: row["status"])
                 else { return nil }
+                var contributor: Contributor?
+                if let name: String = row["contributorName"], let email: String = row["contributorEmail"] {
+                    contributor = Contributor(name: name, email: email)
+                }
                 return DeskEntry(
-                    id: id, kind: kind, title: row["title"] ?? "", author: row["author"],
+                    id: id, kind: kind, title: row["title"] ?? "", author: row["author"], contributor: contributor,
                     uploadedAt: row["uploadedAt"], status: status, publishDate: row["publishDate"]
                 )
             }

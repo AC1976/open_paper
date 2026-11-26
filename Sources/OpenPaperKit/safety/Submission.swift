@@ -119,7 +119,7 @@ extension ParsedUpload {
     }
 }
 
-private enum Check {
+enum Check {
     static func text(_ value: String, _ field: String, _ limit: Int) throws -> String {
         let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { throw SubmissionError.missing(field) }
@@ -184,7 +184,9 @@ extension PaperDatabase {
     /// item: it always gets a new id, and a story whose slug is taken gets a
     /// number added to it.
     @discardableResult
-    package func submit(_ parsed: ParsedUpload, discarding stagedID: UUID? = nil) throws -> UUID {
+    package func submit(
+        _ parsed: ParsedUpload, from contributor: Contributor? = nil, discarding stagedID: UUID? = nil
+    ) throws -> UUID {
         let id = UUID()
         try queue.write { db in
             try Self.register(id, kind: parsed.kind, in: db)
@@ -207,6 +209,12 @@ extension PaperDatabase {
                     id: id, sponsorName: a.sponsorName, imageSource: a.imageSource,
                     altText: a.altText, targetURL: a.targetURL, priority: a.priority
                 ).insert(db)
+            }
+            if let contributor {
+                try db.execute(
+                    sql: "UPDATE items SET contributorName = ?, contributorEmail = ? WHERE id = ?",
+                    arguments: [contributor.name, contributor.email, id.uuidString]
+                )
             }
             try Self.discard(stagedID, in: db)
         }

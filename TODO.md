@@ -40,7 +40,7 @@ the items with that date.
       received; filed and rejected below. On an item: save, "Save and file" with
       a date, reject, or send back to the desk. Category and priority are set
       on the same page.
-  - [ ] Show the contributor's email address (it is collected from step E).
+  - [x] Contributor name and email are shown on the desk and the item page.
   - [ ] No manual order or lead choice within a date (priority, then time received).
   - [ ] Advertisements take a single publish date, like articles. Confirm, or
         give them a date range.
@@ -57,18 +57,28 @@ the items with that date.
   - Uploaded photos are recognised by their bytes; location and other metadata
     are removed (JPEG orientation kept).
   - Rate limit and hidden spam-trap field are written and tested
-    (`SubmissionGuard`), **to be connected in step E**.
-  - [ ] Connect `SubmissionGuard` to the public form; it needs the sender's
-        address (and the real one, once there is a proxy in front).
+    (`SubmissionGuard`), connected in step E.
+  - [x] `SubmissionGuard` is connected to the public form (step E).
   - [ ] Limit picture dimensions as well as file size.
   - [ ] Add a Content-Security-Policy header as a second line of defence.
   - [ ] Pictures stored before this step still carry their metadata.
   - [ ] Login lockout by network address as well as by email.
-- [ ] **E. Contribute pages.** A public form with live preview, downloadable
-      templates and file upload. Author name and email required for all three
-      kinds (stored with the item, not only on stories). Required tick box: "I
-      wrote this myself and you may publish it". Short privacy notice. The name
-      may appear in the paper; **the email address never does**.
+- [x] **E. Contribute pages** (`/contribute`, linked from the masthead). Forms
+      for stories, agenda points and quotes with a live preview; downloadable
+      templates that load into the form for checking before sending. Name and
+      email required; stored with the item and shown on the news desk only (the
+      email never reaches a reader page). A story's byline is the contributor's
+      name. Privacy notice on the form. No "I wrote this myself" tick box (your
+      decision). Spam trap, 5 submissions an hour per address and 100 overall,
+      own-site posts only. Set `OPEN_PAPER_TRUST_PROXY=1` behind your own proxy.
+  - [ ] The preview does not show the picture (a thumbnail shows under the field).
+  - [ ] Editors cannot delete items; rejected submissions keep names and email
+        addresses. Decide how long to keep them and add deletion.
+  - [ ] No terms or permission to publish are asked for. Consider a line above
+        the Send button saying that sending allows publication.
+  - [ ] The rate limit is held in memory and resets when the server restarts;
+        100 pictures an hour can still grow the database quickly.
+  - [ ] Agenda points and quotes show no contributor name to readers.
 
 ### Open questions
 
