@@ -16,6 +16,7 @@ the items with that date.
 - A date's front page shows **only the items with that date**.
 - Items filed with a future date appear by themselves when that date arrives
   (paper's time zone, Europe/Amsterdam). There is no Publish button.
+- The paper and the contribute pages are in Dutch; the editor is in English.
 - Advertisements stay editor-only. They are filed with a first and last day
   and appear in every paper in that range. Advertisements alone do not make a
   paper.
@@ -101,6 +102,9 @@ the items with that date.
   - [ ] No cropping around a focal point; pages crop in the browser (centre).
   - [ ] Animated pictures lose their animation when scaled.
   - [ ] Advertisement YAML and the ad edit page still allow an image address.
+
+- [ ] Web addresses are still English (`/sections/news`, `/contribute/story`),
+      as are the field names in the upload templates.
 
 ### Open questions
 

@@ -69,7 +69,7 @@ package struct PreviewPage: HTMLDocument {
                 h2(.class("preview-label")) { "Agenda" }
                 div(.class("preview-frame broadsheet")) { AgendaSection(points: [point]) }
             case .quotedItem(let quote)?:
-                h2(.class("preview-label")) { "Quoted" }
+                h2(.class("preview-label")) { "Quotes" }
                 div(.class("preview-frame broadsheet")) { QuotedSection(items: [quote]) }
             case .advertisement(let ad)?:
                 h2(.class("preview-label")) { "Advertisement" }
@@ -86,18 +86,20 @@ package struct StoryPreview: HTML {
     package let story: Story
     package let bodyHTML: String
     package var picture: Picture? = nil
+    /// The headings above the two previews.
+    package var labels = (front: "Front page", article: "Article page")
 
     package var body: some HTML {
-        h2(.class("preview-label")) { "Front page" }
+        h2(.class("preview-label")) { labels.front }
         div(.class("preview-frame broadsheet mode-prominent")) {
             StoryCard(placed: PlacedStory(story: story, columnSpan: 2, imageStyle: .standardLead, picture: picture))
         }
 
-        h2(.class("preview-label")) { "Article page" }
+        h2(.class("preview-label")) { labels.article }
         div(.class("preview-frame article-body")) {
             h1(.class("headline")) { story.title }
             if let author = story.author {
-                p(.class("byline")) { "By \(author)" }
+                p(.class("byline")) { "Door \(author)" }
             }
             HTMLRaw(bodyHTML)
         }

@@ -7,9 +7,12 @@ package struct Masthead: HTML {
     package var body: some HTML {
         header(.class("nyt-masthead")) {
             div(.class("masthead-meta")) {
-                span { "VOL. \(metadata.volume) . . . No. \(metadata.issueNumber)" }
+                span { "JAARGANG \(metadata.volume) . . . Nr. \(metadata.issueNumber)" }
                 span(.class("masthead-date")) { metadata.formattedDate }
-                span { metadata.editionLabel }
+                span(.class("masthead-edition")) {
+                    span { metadata.editionLabel }
+                    a(.href("/contribute"), .class("masthead-contribute")) { "Schrijf mee" }
+                }
             }
 
             h1(.class("paper-title")) {
@@ -27,7 +30,6 @@ package struct Masthead: HTML {
                         section.displayTitle
                     }
                 }
-                a(.href("/contribute"), .class("nav-link nav-contribute")) { "Contribute" }
             }
         }
     }

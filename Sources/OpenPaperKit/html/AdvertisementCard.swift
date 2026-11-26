@@ -5,7 +5,7 @@ package struct AdvertisementCard: HTML {
 
     package var body: some HTML {
         aside(.class("story-card category-advertisement")) {
-            span(.class("ad-label")) { "ADVERTISEMENT" }
+            span(.class("ad-label")) { "ADVERTENTIE" }
 
             a(.href(ad.targetURL), .target(.blank), .rel("noopener sponsored"), .class("ad-image-link")) {
                 img(

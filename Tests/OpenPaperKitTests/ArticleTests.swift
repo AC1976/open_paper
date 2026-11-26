@@ -43,7 +43,7 @@ import Testing
     }
 
     @Test func theArticleShowsItsPublishDate() {
-        #expect(render(story(.news)).contains("Friday, November 20, 2026"))
+        #expect(render(story(.news)).contains("Vrijdag 20 november 2026"))
     }
 
     @Test func newsHasARedKickerAndBreakingNewsGetsTheLiveDot() {
@@ -54,28 +54,28 @@ import Testing
 
         let breaking = render(story(.news, priority: .high))
         #expect(breaking.contains("class=\"article article-news article-breaking\""))
-        #expect(breaking.contains("class=\"live-dot\"") && breaking.contains("Breaking news"))
+        #expect(breaking.contains("class=\"live-dot\"") && breaking.contains("Laatste nieuws"))
     }
 
     @Test func backgroundHasAnInBriefBoxAndAContentsList() {
         let page = render(story(.background), body: "<h2>First part</h2><p>a</p><h2>Second part</h2><p>b</p>")
-        #expect(page.contains("class=\"article article-background\"") && page.contains("Analysis &amp; Background"))
-        #expect(page.contains("In brief") && page.contains("More detail."))
-        #expect(page.contains("In this article"))
+        #expect(page.contains("class=\"article article-background\"") && page.contains("Analyse &amp; Achtergrond"))
+        #expect(page.contains("In het kort") && page.contains("More detail."))
+        #expect(page.contains("In dit artikel"))
         #expect(page.contains("href=\"#first-part\"") && page.contains("id=\"second-part\""))
     }
 
     @Test func backgroundWithoutHeadingsHasNoContentsListAndFallsBackToTheSummary() {
         let page = render(story(.background, extended: nil), body: "<p>plain</p>")
-        #expect(!page.contains("In this article"))
-        #expect(page.contains("In brief") && page.contains("The summary."))
+        #expect(!page.contains("In dit artikel"))
+        #expect(page.contains("In het kort") && page.contains("The summary."))
     }
 
     @Test func opinionHasTheAuthorAndAClosingNote() {
         let page = render(story(.opinion))
-        #expect(page.contains("class=\"article article-opinion\"") && page.contains("By Jane Doe"))
-        #expect(page.contains("views of their authors"))
-        #expect(!page.contains("In brief"))
+        #expect(page.contains("class=\"article article-opinion\"") && page.contains("Door Jane Doe"))
+        #expect(page.contains("mening van de auteur"))
+        #expect(!page.contains("In het kort"))
         #expect(!page.contains("More detail."))               // the extended summary is only for news and background
     }
 
@@ -86,7 +86,7 @@ import Testing
 
     @Test func bylineAndPhotoCreditsAreOptional() {
         let bare = render(story(.news, author: nil, extended: nil))
-        #expect(!bare.contains("By ") && !bare.contains("<figure"))
+        #expect(!bare.contains("Door ") && !bare.contains("<figure"))
 
         let picture = Picture(src: "/x.jpg", altText: "Alt text", caption: "A caption", credit: "Photo: Someone")
         let withImage = render(story(.news), picture: picture)
@@ -103,13 +103,13 @@ import Testing
     @Test func moreInTheSectionLinksToOtherArticles() {
         let other = Story(category: .news, priority: .normal, title: "Other story", summary: "Other summary", slug: "other-story")
         let page = render(story(.news), related: [other])
-        #expect(page.contains("More in News") && page.contains("href=\"/sections/news\""))
+        #expect(page.contains("Meer in Nieuws") && page.contains("href=\"/sections/news\""))
         #expect(page.contains("href=\"/articles/other-story\"") && page.contains("Other summary"))
-        #expect(!render(story(.news)).contains("More in News"))
+        #expect(!render(story(.news)).contains("Meer in Nieuws"))
     }
 
     @Test func theSectionIsHighlightedInTheMasthead() {
-        #expect(render(story(.opinion)).contains("nav-link active\">Opinion"))
+        #expect(render(story(.opinion)).contains("nav-link active\">Opinie"))
     }
 }
 

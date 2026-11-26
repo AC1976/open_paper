@@ -29,11 +29,11 @@ func addPublicRoutes(to router: Router<AppRequestContext>, database: PaperDataba
     router.get("/issues/:date") { request, context -> Response in
         let date = try context.parameters.require("date")
         guard EditorDates.isDay(date), date <= EditorDates.today() else {
-            throw HTTPError(.notFound, message: "There is no paper for that date.")
+            throw HTTPError(.notFound, message: "Van die datum is er geen krant.")
         }
         let issue = try database.issue(on: date)
         guard !issue.isEmpty else {
-            throw HTTPError(.notFound, message: "There is no paper for that date.")
+            throw HTTPError(.notFound, message: "Van die datum is er geen krant.")
         }
         return frontPage(issue, request, context)
     }
@@ -43,7 +43,7 @@ func addPublicRoutes(to router: Router<AppRequestContext>, database: PaperDataba
 /// else asking for one is told it does not exist.
 private func addImageRoute(to router: Router<AppRequestContext>, database: PaperDatabase) {
     router.get("/images/:id") { request, context -> Response in
-        let notFound = HTTPError(.notFound, message: "There is no such picture.")
+        let notFound = HTTPError(.notFound, message: "Die afbeelding bestaat niet.")
         guard let id = UUID(uuidString: try context.parameters.require("id")),
               let image = try database.image(id, width: request.uri.queryParameters["w"].flatMap { Int($0) })
         else { throw notFound }
@@ -69,7 +69,7 @@ private func addArticleRoutes(to router: Router<AppRequestContext>, database: Pa
         guard let (story, markdown, publishDate, picture) = try database.publishedStory(slug: slug),
               let latest = try database.latestIssueDate()
         else {
-            throw HTTPError(.notFound, message: "There is no article with that address.")
+            throw HTTPError(.notFound, message: "Er is geen artikel op dit adres.")
         }
         let related = try database.publishedItems().stories
             .filter { $0.category == story.category && $0.id != story.id }
@@ -91,7 +91,7 @@ private func addSectionRoutes(to router: Router<AppRequestContext>, database: Pa
     router.get("/sections/:name") { request, context -> Response in
         let name = try context.parameters.require("name")
         guard let section = PaperSection(rawValue: name) else {
-            throw HTTPError(.notFound, message: "There is no section called \"\(name)\".")
+            throw HTTPError(.notFound, message: "Er is geen rubriek \"\(name)\".")
         }
         if section == .frontPage { return .redirect(to: "/") }
 

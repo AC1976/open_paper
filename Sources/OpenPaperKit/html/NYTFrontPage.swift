@@ -11,6 +11,7 @@ package struct NYTFrontPage: HTMLDocument {
     }
 
     package var title: String { metadata.paperTitle }
+    package var lang: String { "nl" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -51,7 +52,7 @@ package struct NYTFrontPage: HTMLDocument {
                     // 3. Opinion at the bottom
                     if !plan.opinionPieces.isEmpty {
                         section(.class("rail-section")) {
-                            h3(.class("rail-header")) { "Opinion" }
+                            h3(.class("rail-header")) { "Opinie" }
                             for piece in plan.opinionPieces {
                                 StoryCard(placed: PlacedStory(
                                     story: piece,

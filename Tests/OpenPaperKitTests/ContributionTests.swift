@@ -24,7 +24,7 @@ private func problems(_ kind: ContributionKind, _ fields: ContributionFields, im
             #expect(problems(kind, fields(extra)).isEmpty, "\(kind)")
             #expect(problems(kind, fields(extra.merging(["name": "  "]) { _, new in new })).count == 1)
             for bad in ["", "jane", "jane@", "a b@example.org"] {
-                #expect(problems(kind, fields(extra.merging(["email": bad]) { _, new in new })) == ["Enter a valid email address."], "\(bad)")
+                #expect(problems(kind, fields(extra.merging(["email": bad]) { _, new in new })) == ["Vul een geldig e-mailadres in."], "\(bad)")
             }
         }
     }
@@ -127,7 +127,7 @@ private func problems(_ kind: ContributionKind, _ fields: ContributionFields, im
                                      agendaPoints: items.agendaPoints, quotedItems: items.quotedItems).render())
         }
         for page in pages { #expect(!page.lowercased().contains("jane@example.org")) }
-        #expect(pages[1].contains("By Jane Writer"))
+        #expect(pages[1].contains("Door Jane Writer"))
     }
 }
 
@@ -138,7 +138,7 @@ private func problems(_ kind: ContributionKind, _ fields: ContributionFields, im
         #expect(page.contains("value=\"Kept&quot; onfocus=&quot;alert(1)\""))       // cannot leave the attribute
         #expect(page.contains("&lt;/textarea&gt;&lt;script&gt;"))                    // or the text box
         #expect(page.contains("name=\"website\""))                      // spam trap
-        #expect(page.contains("It is never published."))
+        #expect(page.contains("Het wordt nooit gepubliceerd."))
         #expect(!page.contains("type=\"checkbox\""))
     }
 
@@ -155,5 +155,33 @@ private func problems(_ kind: ContributionKind, _ fields: ContributionFields, im
     @Test func theMastheadInvitesContributions() throws {
         let issue = try PaperDatabase().issue(on: "2026-11-20")
         #expect(NYTFrontPage(metadata: issue.metadata, plan: issue.plan).render().contains("href=\"/contribute\""))
+    }
+}
+
+@Suite struct DutchPaperTests {
+    @Test func theMastheadIsDutchWithSchrijfMeeBesideTheEdition() throws {
+        let issue = try PaperDatabase().issue(on: "2026-11-20")
+        let page = NYTFrontPage(metadata: issue.metadata, plan: issue.plan).render()
+        #expect(page.contains("<html lang=\"nl\""))
+        #expect(page.contains("vrijdag 20 november 2026") && page.contains("JAARGANG 1"))
+        for section in ["Voorpagina", "Nieuws", "Achtergrond", "Opinie", "Agenda", "Quotes"] {
+            #expect(page.contains(">\(section)</a>"), "\(section)")
+        }
+        let meta = try #require(page.range(of: "masthead-meta"))
+        let sections = try #require(page.range(of: "<nav class=\"section-nav\""))
+        let line = page[meta.upperBound..<sections.lowerBound]
+        #expect(line.contains("Namiddag Editie") && line.contains(">Schrijf mee</a>"))
+        #expect(!page[sections.upperBound...].contains("/contribute"))
+    }
+
+    @Test func contributorsAreAnsweredInDutch() {
+        #expect(throws: FormProblems.self) { try ContributionForm.read(.quote, fields: ContributionFields()) }
+        do {
+            _ = try ContributionForm.read(.quote, fields: ContributionFields())
+        } catch let problems as FormProblems {
+            #expect(problems.messages.contains("\"Je naam\" mag niet leeg zijn."))
+        } catch {
+            Issue.record("unexpected \(error)")
+        }
     }
 }

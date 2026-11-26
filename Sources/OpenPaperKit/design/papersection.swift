@@ -10,12 +10,12 @@ package enum PaperSection: String, CaseIterable, Codable, Sendable {
 
     package var displayTitle: String {
         switch self {
-        case .frontPage: return "Front Page"
-        case .news: return "News"
-        case .background: return "Background"
-        case .opinion: return "Opinion"
+        case .frontPage: return "Voorpagina"
+        case .news: return "Nieuws"
+        case .background: return "Achtergrond"
+        case .opinion: return "Opinie"
         case .agenda: return "Agenda"
-        case .quoted: return "Quoted"
+        case .quoted: return "Quotes"
         }
     }
 
@@ -49,10 +49,26 @@ package struct EditionMetadata: Codable, Sendable {
     }
 
     package var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "nl_NL")
-        formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        return formatter.string(from: editionDate)
+        PaperDates.long(editionDate)
     }
 }
 
+
+/// Dates as readers see them: Dutch, in the paper's time zone.
+package enum PaperDates {
+    /// "vrijdag 20 november 2026"
+    package static func long(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nl_NL")
+        formatter.timeZone = TimeZone(identifier: "Europe/Amsterdam") ?? .current
+        formatter.dateFormat = "EEEE d MMMM yyyy"
+        return formatter.string(from: date)
+    }
+
+    /// A "yyyy-MM-dd" day on a line of its own: "Vrijdag 20 november 2026".
+    package static func line(_ day: String) -> String {
+        guard let date = EditorDates.parseDay(day) else { return day }
+        let text = long(date)
+        return text.prefix(1).uppercased() + text.dropFirst()
+    }
+}

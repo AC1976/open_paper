@@ -21,6 +21,17 @@ package enum SubmissionError: Error, CustomStringConvertible, Sendable, Equatabl
         case .badLink(let field): "\"\(field)\" must start with http:// or https://."
         }
     }
+
+    /// The same message for contributors.
+    package var dutch: String {
+        switch self {
+        case .fileTooLarge: "Het bestand is groter dan \(SubmissionLimits.fileBytes / 1000) KB."
+        case .aliasesNotAllowed: "YAML-ankers en -aliassen (& en *) zijn niet toegestaan."
+        case .missing(let field): "\"\(field)\" mag niet leeg zijn."
+        case .tooLong(let field, let limit): "\"\(field)\" is langer dan \(limit) tekens."
+        case .badLink(let field): "\"\(field)\" moet beginnen met http:// of https://."
+        }
+    }
 }
 
 package enum SubmissionLimits {

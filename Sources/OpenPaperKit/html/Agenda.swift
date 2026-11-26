@@ -32,7 +32,7 @@ package struct AgendaSection: HTML {
             if !overflowPoints.isEmpty {
                 details(.class("agenda-expand")) {
                     summary(.class("show-more-toggle")) {
-                        "Show \(overflowPoints.count) more"
+                        "Nog \(overflowPoints.count) tonen"
                     }
                     div(.class("agenda-overflow-list")) {
                         for point in overflowPoints {

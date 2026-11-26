@@ -137,6 +137,7 @@ package struct NoIssuePage: HTMLDocument {
     package init() {}
 
     package var title: String { "Het Grootboek" }
+    package var lang: String { "nl" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -148,9 +149,9 @@ package struct NoIssuePage: HTMLDocument {
     package var body: some HTML {
         main(.class("editor-main")) {
             h1 { "Het Grootboek" }
-            p(.class("empty")) { "Nothing has been published yet." }
-            p { a(.href("/contribute")) { "Send us a story, an agenda point or a quote" } }
-            p { a(.href("/editor")) { "Editor: go to the news desk" } }
+            p(.class("empty")) { "Er is nog niets gepubliceerd." }
+            p { a(.href("/contribute")) { "Schrijf mee: stuur ons een artikel, agendapunt of quote" } }
+            p { a(.href("/editor")) { "Redactie: naar de nieuwsdesk" } }
         }
     }
 }

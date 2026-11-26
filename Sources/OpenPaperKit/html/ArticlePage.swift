@@ -39,6 +39,7 @@ package struct ArticlePage: HTMLDocument {
     private var isBreaking: Bool { story.category == .news && story.priority == .high }
 
     package var title: String { "\(story.title) — \(metadata.paperTitle)" }
+    package var lang: String { "nl" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -82,12 +83,12 @@ package struct ArticlePage: HTMLDocument {
                     if story.category == .background {
                         aside(.class("article-aside")) {
                             div(.class("aside-block")) {
-                                h2(.class("aside-label")) { "In brief" }
+                                h2(.class("aside-label")) { "In het kort" }
                                 p(.class("aside-text")) { story.extendedSummary ?? story.summary }
                             }
                             if !text.headings.isEmpty {
-                                nav(.class("aside-block"), .custom(name: "aria-label", value: "In this article")) {
-                                    h2(.class("aside-label")) { "In this article" }
+                                nav(.class("aside-block"), .custom(name: "aria-label", value: "In dit artikel")) {
+                                    h2(.class("aside-label")) { "In dit artikel" }
                                     ul(.class("article-contents")) {
                                         for heading in text.headings {
                                             li { a(.href("#\(heading.id)")) { heading.title } }
@@ -101,7 +102,7 @@ package struct ArticlePage: HTMLDocument {
                     div(.class("article-text")) {
                         HTMLRaw(text.html)
                         if story.category == .opinion {
-                            p(.class("opinion-note")) { "Opinion pieces reflect the views of their authors, not of the paper." }
+                            p(.class("opinion-note")) { "Opiniestukken geven de mening van de auteur weer, niet die van de krant." }
                         }
                     }
                 }
@@ -110,7 +111,7 @@ package struct ArticlePage: HTMLDocument {
             if !related.isEmpty {
                 aside(.class("article-related")) {
                     h2(.class("related-heading")) {
-                        a(.href(section.href)) { "More in \(section.displayTitle)" }
+                        a(.href(section.href)) { "Meer in \(section.displayTitle)" }
                     }
                     div(.class("related-grid")) {
                         for other in related {
@@ -134,17 +135,17 @@ package struct ArticlePage: HTMLDocument {
             switch (story.category, story.priority) {
             case (.news, .high):
                 span(.class("live-dot"))
-                a(.href(section.href)) { "Breaking news" }
+                a(.href(section.href)) { "Laatste nieuws" }
             case (.news, .normal):
-                a(.href(section.href)) { "News" }
+                a(.href(section.href)) { "Nieuws" }
             case (.background, .high):
-                a(.href(section.href)) { "Must read · Analysis" }
+                a(.href(section.href)) { "Aanrader · Analyse" }
             case (.background, .normal):
-                a(.href(section.href)) { "Analysis & Background" }
+                a(.href(section.href)) { "Analyse & Achtergrond" }
             case (.opinion, .high):
-                a(.href(section.href)) { "Must read · Opinion" }
+                a(.href(section.href)) { "Aanrader · Opinie" }
             case (.opinion, .normal):
-                a(.href(section.href)) { "Opinion" }
+                a(.href(section.href)) { "Opinie" }
             }
         }
     }
@@ -154,13 +155,13 @@ package struct ArticlePage: HTMLDocument {
     private var meta_: some HTML {
         div(.class("article-meta")) {
             if let author = story.author {
-                span(.class("article-author")) { "By \(author)" }
+                span(.class("article-author")) { "Door \(author)" }
             }
             div(.class("article-dates")) {
                 if let publishDate {
-                    span { EditorDates.longDay(publishDate) }
+                    span { PaperDates.line(publishDate) }
                 }
-                span { "\(ArticleText.readingMinutes(bodyHTML)) min read" }
+                span { "\(ArticleText.readingMinutes(bodyHTML)) min leestijd" }
             }
         }
     }

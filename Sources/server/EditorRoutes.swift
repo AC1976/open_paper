@@ -406,13 +406,15 @@ private func done(_ request: Request, redirectingTo path: String) -> Response {
     return .redirect(to: path)
 }
 
-func readForm(_ request: Request, limit: Int = maxRequestBytes) async throws -> MultipartForm {
+func readForm(
+    _ request: Request, limit: Int = maxRequestBytes, tooLarge: String = "What was sent is too large."
+) async throws -> MultipartForm {
     var request = request
     let body: ByteBuffer
     do {
         body = try await request.collectBody(upTo: limit)
     } catch {
-        throw HTTPError(.contentTooLarge, message: "What was sent is too large.")
+        throw HTTPError(.contentTooLarge, message: tooLarge)
     }
     do {
         return try MultipartForm(body: Data(body.readableBytesView), contentType: request.headers[.contentType])

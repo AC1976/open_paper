@@ -24,6 +24,7 @@ func addContributeRoutes(
     trustProxy: Bool
 ) {
     let submissions = SubmissionGuard()
+    let tooLarge = "Wat je verstuurde is te groot."
 
     @Sendable func html(
         _ page: some HTML & Sendable, _ request: Request, _ context: AppRequestContext, status: HTTPResponse.Status = .ok
@@ -33,7 +34,7 @@ func addContributeRoutes(
 
     @Sendable func kind(_ context: AppRequestContext) throws -> ContributionKind {
         guard let kind = ContributionKind(rawValue: try context.parameters.require("kind")) else {
-            throw HTTPError(.notFound, message: "You can send in a story, an agenda point or a quote.")
+            throw HTTPError(.notFound, message: "Je kunt een artikel, agendapunt of quote insturen.")
         }
         return kind
     }
@@ -65,7 +66,7 @@ func addContributeRoutes(
 
     router.post("/contribute/:kind") { request, context -> Response in
         let kind = try kind(context)
-        let form = try await readForm(request)
+        let form = try await readForm(request, tooLarge: tooLarge)
         // A robot is told all went well, so it does not try another way.
         if SubmissionGuard.isRobot(form) { return .redirect(to: "/contribute/thanks") }
 
@@ -75,7 +76,7 @@ func addContributeRoutes(
             // Counted only for acceptable submissions, so typing mistakes cost nothing.
             guard await submissions.allow(sender(of: request, context, trustProxy: trustProxy)) else {
                 return html(
-                    ContributePage(kind: kind, fields: fields, problems: ["Too much has been sent in lately. Please try again in an hour."]),
+                    ContributePage(kind: kind, fields: fields, problems: ["Er is de laatste tijd te veel ingestuurd. Probeer het over een uur opnieuw."]),
                     request, context, status: .tooManyRequests
                 )
             }
@@ -91,31 +92,31 @@ func addContributeRoutes(
 
     router.post("/contribute/:kind/preview") { request, context -> Response in
         let kind = try kind(context)
-        let fields = ContributionFields(form: try await readForm(request, limit: 400_000))
+        let fields = ContributionFields(form: try await readForm(request, limit: 400_000, tooLarge: tooLarge))
         return html(ContributionPreview(kind: kind, fields: fields), request, context)
     }
 
     router.post("/contribute/:kind/load") { request, context -> Response in
         let kind = try kind(context)
-        let form = try await readForm(request, limit: 400_000)
+        let form = try await readForm(request, limit: 400_000, tooLarge: tooLarge)
         var fields = ContributionFields(form: form)
 
         func refuse(_ problem: String) -> Response {
             html(ContributePage(kind: kind, fields: fields, problems: [problem]), request, context, status: .unprocessableContent)
         }
-        guard let file = form.file("file") else { return refuse("Choose your filled-in template.") }
-        guard let text = String(data: file.data, encoding: .utf8) else { return refuse("That is not a text file.") }
+        guard let file = form.file("file") else { return refuse("Kies je ingevulde sjabloon.") }
+        guard let text = String(data: file.data, encoding: .utf8) else { return refuse("Dat is geen tekstbestand.") }
         do {
             fields.fill(from: try ParsedUpload(kind: kind.itemKind, text: text, name: file.filename ?? "template.md"))
         } catch let error as SubmissionError {
-            return refuse(error.description)
+            return refuse(error.dutch)
         } catch let error as UploadError {
-            return refuse(error.description)
+            return refuse(error.dutch)
         } catch {
-            return refuse("The file could not be read. Check that it still looks like the \(kind.label.lowercased()) template.")
+            return refuse("Het bestand kon niet worden gelezen. Controleer of het nog op het sjabloon voor \(kind.phrase) lijkt.")
         }
         return html(
-            ContributePage(kind: kind, fields: fields, notice: "Loaded. Check the fields, then send it to the editors. Nothing has been sent yet."),
+            ContributePage(kind: kind, fields: fields, notice: "Geladen. Controleer de velden en verstuur het dan naar de redactie. Er is nog niets verzonden."),
             request, context
         )
     }

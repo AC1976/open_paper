@@ -49,6 +49,14 @@ package enum UploadError: Error, CustomStringConvertible {
             return "\(name) must start with a '---' line, then the YAML, then another '---' line."
         }
     }
+
+    /// The same message for contributors.
+    package var dutch: String {
+        switch self {
+        case .noFrontMatter(let name):
+            return "\(name) moet beginnen met een regel '---', dan de YAML, dan weer een regel '---'."
+        }
+    }
 }
 
 /// An upload parsed into the model its kind asks for.

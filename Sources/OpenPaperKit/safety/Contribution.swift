@@ -24,7 +24,23 @@ package enum ContributionKind: String, CaseIterable, Sendable {
         }
     }
 
-    package var label: String { itemKind.label }
+    /// The name contributors see.
+    package var label: String {
+        switch self {
+        case .story: "Artikel"
+        case .agenda: "Agendapunt"
+        case .quote: "Quote"
+        }
+    }
+
+    /// As used in a sentence: "het sjabloon voor een artikel".
+    package var phrase: String {
+        switch self {
+        case .story: "een artikel"
+        case .agenda: "een agendapunt"
+        case .quote: "een quote"
+        }
+    }
 
     /// A file to fill in. Every template is also a valid upload (see the tests).
     package var template: String {
@@ -32,43 +48,43 @@ package enum ContributionKind: String, CaseIterable, Sendable {
         case .story:
             """
             ---
-            # Fill in the fields, then load this file on the contribute page.
-            category: news          # news, background or opinion
-            title: Your headline
+            # Vul de velden in en laad dit bestand op de pagina "Schrijf mee".
+            category: news          # news (nieuws), background (achtergrond) of opinion (opinie)
+            title: Je kop
             summary: >
-              Two or three sentences that tell readers what the story is about.
-            extendedSummary: >      # optional, delete if not needed
-              A little more detail.
+              Twee of drie zinnen die vertellen waar het artikel over gaat.
+            extendedSummary: >      # optioneel, verwijder als je dit niet nodig hebt
+              Iets meer uitleg.
             ---
-            Write your article here. You can use markdown.
+            Schrijf hier je artikel. Je kunt markdown gebruiken.
 
-            ## A subheading
+            ## Een tussenkop
 
-            - a list item
-            - [a link](https://example.com)
+            - een punt in een lijst
+            - [een link](https://example.com)
 
             """
         case .agenda:
             """
             ---
-            # Fill in the fields, then load this file on the contribute page.
-            subject: What is happening
-            place: Where it is happening
+            # Vul de velden in en laad dit bestand op de pagina "Schrijf mee".
+            subject: Wat er gebeurt
+            place: Waar het gebeurt
             link: https://example.com
-            eventDate: 2027-01-15T14:00:00+01:00     # optional
+            eventDate: 2027-01-15T14:00:00+01:00     # optioneel
             summary: >
-              A sentence or two about the event.
+              Een of twee zinnen over de gebeurtenis.
             ---
 
             """
         case .quote:
             """
             ---
-            # Fill in the fields, then load this file on the contribute page.
-            quote: The words that were said, without quotation marks.
-            speaker: Who said them
+            # Vul de velden in en laad dit bestand op de pagina "Schrijf mee".
+            quote: De woorden die gezegd zijn, zonder aanhalingstekens.
+            speaker: Wie ze zei
             context: >
-              When and where it was said, and why it matters.
+              Wanneer en waar het gezegd is, en waarom het ertoe doet.
             sourceLink: https://example.com
             ---
 
@@ -140,7 +156,12 @@ package enum ContributionForm {
         var problems: [String] = []
 
         func check<T>(_ work: () throws -> T) -> T? {
-            do { return try work() } catch { problems.append("\(error)"); return nil }
+            do {
+                return try work()
+            } catch {
+                problems.append((error as? SubmissionError)?.dutch ?? "\(error)")
+                return nil
+            }
         }
         func text(_ name: String, _ label: String, _ limit: Int) -> String {
             check { try Check.text(fields[name], label, limit) } ?? ""
@@ -152,41 +173,41 @@ package enum ContributionForm {
             check { try Check.link(fields[name], label) } ?? ""
         }
 
-        let name = text("name", "Your name", SubmissionLimits.name)
+        let name = text("name", "Je naam", SubmissionLimits.name)
         var email = ""
         if let valid = try? PaperDatabase.normalised(email: fields["email"]), valid.count <= emailLimit {
             email = valid
         } else {
-            problems.append("Enter a valid email address.")
+            problems.append("Vul een geldig e-mailadres in.")
         }
 
         let item: ParsedUpload?
         switch kind {
         case .story:
             let category = StoryCategory(rawValue: fields["category"])
-            if category == nil { problems.append("Choose a category.") }
-            let title = text("title", "Headline", SubmissionLimits.title)
-            let summary = text("summary", "Summary", SubmissionLimits.summary)
-            let extended = optional("extendedSummary", "Extended summary", SubmissionLimits.summary)
+            if category == nil { problems.append("Kies een rubriek.") }
+            let title = text("title", "Kop", SubmissionLimits.title)
+            let summary = text("summary", "Samenvatting", SubmissionLimits.summary)
+            let extended = optional("extendedSummary", "Uitgebreide samenvatting", SubmissionLimits.summary)
             let body = fields["body"].trimmingCharacters(in: .whitespacesAndNewlines)
-            if body.isEmpty { problems.append("Write the article text.") }
+            if body.isEmpty { problems.append("Schrijf de tekst van het artikel.") }
             if body.count > SubmissionLimits.body {
-                problems.append("\(SubmissionError.tooLong("Article text", SubmissionLimits.body))")
+                problems.append(SubmissionError.tooLong("Tekst", SubmissionLimits.body).dutch)
             }
 
             if let image {
-                let alt = text("altText", "Description of the picture", SubmissionLimits.title)
-                let caption = optional("caption", "Caption", SubmissionLimits.title)
-                let credit = optional("credit", "Picture credit", SubmissionLimits.name)
+                let alt = text("altText", "Beschrijving van de foto", SubmissionLimits.title)
+                let caption = optional("caption", "Bijschrift", SubmissionLimits.title)
+                let credit = optional("credit", "Fotograaf of bron", SubmissionLimits.name)
                 if image.count > StoryForm.maxImageBytes {
-                    problems.append("The picture is larger than \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
+                    problems.append("De foto is groter dan \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
                 } else if let cleaned = ImageResizer.accept(image) {
                     picture = NewPicture(
                         data: cleaned.data, mimeType: cleaned.mimeType,
                         text: PictureText(altText: alt, caption: caption, credit: credit)
                     )
                 } else {
-                    problems.append("The picture must be a JPEG, PNG or WebP file of at most 60 megapixels.")
+                    problems.append("De foto moet een JPEG-, PNG- of WebP-bestand zijn van maximaal 60 megapixels.")
                 }
             }
             item = category.map {
@@ -200,22 +221,22 @@ package enum ContributionForm {
             var eventDate: Date?
             if !fields["eventDate"].isEmpty {
                 eventDate = EditorDates.parseDateTime(fields["eventDate"])
-                if eventDate == nil { problems.append("The date and time of the event are not valid.") }
+                if eventDate == nil { problems.append("De datum en tijd van de gebeurtenis kloppen niet.") }
             }
             item = .agendaPoint(AgendaPoint(
-                subject: text("subject", "Subject", SubmissionLimits.title),
-                place: text("place", "Place", SubmissionLimits.name),
+                subject: text("subject", "Onderwerp", SubmissionLimits.title),
+                place: text("place", "Plaats", SubmissionLimits.name),
                 link: link("link", "Link"),
-                summary: text("summary", "Summary", SubmissionLimits.summary),
+                summary: text("summary", "Samenvatting", SubmissionLimits.summary),
                 eventDate: eventDate
             ))
 
         case .quote:
             item = .quotedItem(QuotedItem(
                 quote: text("quote", "Quote", SubmissionLimits.summary),
-                speaker: text("speaker", "Speaker", SubmissionLimits.name),
+                speaker: text("speaker", "Spreker", SubmissionLimits.name),
                 context: text("context", "Context", SubmissionLimits.summary),
-                sourceLink: link("sourceLink", "Source link")
+                sourceLink: link("sourceLink", "Link naar de bron")
             ))
         }
 

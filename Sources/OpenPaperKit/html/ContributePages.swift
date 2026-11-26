@@ -22,7 +22,8 @@ package struct ContributePage: HTMLDocument {
 
     private var path: String { "/contribute/\(kind.rawValue)" }
 
-    package var title: String { "Contribute — Het Grootboek" }
+    package var title: String { "Schrijf mee — Het Grootboek" }
+    package var lang: String { "nl" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -33,15 +34,15 @@ package struct ContributePage: HTMLDocument {
 
     package var body: some HTML {
         header(.class("editor-bar")) {
-            span(.class("editor-brand")) { "Het Grootboek · Contribute" }
-            a(.href("/"), .class("editor-link")) { "← The paper" }
+            span(.class("editor-brand")) { "Het Grootboek · Schrijf mee" }
+            a(.href("/"), .class("editor-link")) { "← Naar de krant" }
         }
 
         main(.class("review"), .custom(name: "data-path", value: path)) {
             div(.class("contribute-intro")) {
-                h1(.class("review-title")) { "Send us something for the paper" }
-                p { "Our editors read everything that comes in and decide what appears, and when." }
-                nav(.class("kind-tabs"), .custom(name: "aria-label", value: "What are you sending?")) {
+                h1(.class("review-title")) { "Stuur ons iets voor de krant" }
+                p { "De redactie leest alles wat binnenkomt en bepaalt wat er in de krant komt, en wanneer." }
+                nav(.class("kind-tabs"), .custom(name: "aria-label", value: "Wat stuur je in?")) {
                     for option in ContributionKind.allCases {
                         a(.href("/contribute/\(option.rawValue)"), .class("button")) { option.label }
                             .attributes(.custom(name: "aria-current", value: "page"), when: option == kind)
@@ -52,7 +53,7 @@ package struct ContributePage: HTMLDocument {
             div(.class("review-form")) {
                 if !problems.isEmpty {
                     div(.class("problems")) {
-                        p { "Not sent yet:" }
+                        p { "Nog niet verzonden:" }
                         ul {
                             for problem in problems { li { problem } }
                         }
@@ -61,42 +62,42 @@ package struct ContributePage: HTMLDocument {
                 if let notice { p(.class("notice")) { notice } }
 
                 fieldset {
-                    legend { "Prefer a file?" }
+                    legend { "Liever een bestand?" }
                     p(.class("status")) {
                         a(.href("/contribute/templates/\(kind.rawValue).md"), .custom(name: "download", value: "\(kind.rawValue).md")) {
-                            "Download the \(kind.label.lowercased()) template"
+                            "Download het sjabloon voor \(kind.phrase)"
                         }
-                        ", fill it in, and load it here. Check it, then send it."
+                        ", vul het in en laad het hier. Controleer het en verstuur het daarna."
                     }
                     form(.method(.post), .action("\(path)/load"), .enctype(.multipartFormData), .class("issue-picker"), .id("load-form")) {
                         input(.type(.hidden), .name("name"), .value(fields["name"]))
                         input(.type(.hidden), .name("email"), .value(fields["email"]))
                         div(.class("field")) {
-                            label(.for("file")) { "Filled-in template" }
+                            label(.for("file")) { "Ingevuld sjabloon" }
                             input(.type(.file), .id("file"), .name("file"), .accept(".md,text/markdown,text/plain"), .required)
                         }
-                        button(.type(.submit), .class("button")) { "Load into form" }
+                        button(.type(.submit), .class("button")) { "In het formulier laden" }
                     }
                 }
 
                 form(.method(.post), .action(path), .enctype(.multipartFormData), .id("contribution")) {
                     div(.class("trap"), .custom(name: "aria-hidden", value: "true")) {
-                        label(.for(SubmissionGuard.trapField)) { "Leave this empty" }
+                        label(.for(SubmissionGuard.trapField)) { "Laat dit leeg" }
                         input(.type(.text), .id(SubmissionGuard.trapField), .name(SubmissionGuard.trapField),
                               .custom(name: "tabindex", value: "-1"), .custom(name: "autocomplete", value: "off"))
                     }
 
                     fieldset {
-                        legend { "About you" }
-                        text("name", "Your name", limit: SubmissionLimits.name, required: true, autocomplete: "name")
+                        legend { "Over jou" }
+                        text("name", "Je naam", limit: SubmissionLimits.name, required: true, autocomplete: "name")
                         div(.class("field")) {
-                            label(.for("email")) { "Email address" }
+                            label(.for("email")) { "E-mailadres" }
                             input(.type(.email), .id("email"), .name("email"), .value(fields["email"]), .required,
                                   .custom(name: "maxlength", value: "\(ContributionForm.emailLimit)"),
                                   .custom(name: "autocomplete", value: "email"))
                         }
                         p(.class("privacy")) {
-                            "Your name may appear in the paper with your contribution. Your email address is seen only by our editors, who may use it to contact you. It is never published."
+                            "Je naam kan bij je bijdrage in de krant staan. Je e-mailadres ziet alleen de redactie, die het kan gebruiken om contact met je op te nemen. Het wordt nooit gepubliceerd."
                         }
                     }
 
@@ -107,7 +108,7 @@ package struct ContributePage: HTMLDocument {
                     }
 
                     div(.class("actions")) {
-                        button(.type(.submit), .class("button primary")) { "Send to the editors" }
+                        button(.type(.submit), .class("button primary")) { "Verstuur naar de redactie" }
                     }
                 }
             }
@@ -125,60 +126,60 @@ package struct ContributePage: HTMLDocument {
     @HTMLBuilder
     private var storyFields: some HTML {
         fieldset {
-            legend { "Your story" }
+            legend { "Je artikel" }
             div(.class("field")) {
-                label(.for("category")) { "Category" }
+                label(.for("category")) { "Rubriek" }
                 select(.id("category"), .name("category")) {
                     for category in [StoryCategory.news, .background, .opinion] {
-                        option(.value(category.rawValue)) { category.rawValue.capitalized }
+                        option(.value(category.rawValue)) { PaperSection(rawValue: category.rawValue)?.displayTitle ?? category.rawValue }
                             .attributes(.selected, when: category.rawValue == fields["category"])
                     }
                 }
             }
-            text("title", "Headline", limit: SubmissionLimits.title, required: true)
-            area("summary", "Summary", rows: 3, limit: SubmissionLimits.summary, required: true)
-            area("extendedSummary", "Extended summary (optional)", rows: 3, limit: SubmissionLimits.summary)
-            area("body", "Article text", rows: 14, limit: SubmissionLimits.body, required: true,
-                 hint: "Markdown: ## subheading, **bold**, - list, [link](https://…)", extraClass: "markdown")
+            text("title", "Kop", limit: SubmissionLimits.title, required: true)
+            area("summary", "Samenvatting", rows: 3, limit: SubmissionLimits.summary, required: true)
+            area("extendedSummary", "Uitgebreide samenvatting (optioneel)", rows: 3, limit: SubmissionLimits.summary)
+            area("body", "Tekst", rows: 14, limit: SubmissionLimits.body, required: true,
+                 hint: "Markdown: ## tussenkop, **vet**, - lijst, [link](https://…)", extraClass: "markdown")
         }
         fieldset {
-            legend { "Picture (optional)" }
+            legend { "Foto (optioneel)" }
             div(.class("field")) {
-                label(.for("imageFile")) { "Picture file" }
+                label(.for("imageFile")) { "Fotobestand" }
                 input(.type(.file), .id("imageFile"), .name("imageFile"), .accept("image/jpeg,image/png,image/webp"))
-                small(.class("hint")) { "JPEG, PNG or WebP, up to 15 MB. Large pictures are scaled down and location data is removed. If the form comes back, choose it again." }
-                img(.id("thumbnail"), .class("thumbnail"), .alt("The picture you chose"), .custom(name: "hidden", value: ""))
+                small(.class("hint")) { "JPEG, PNG of WebP, maximaal 15 MB. Grote foto's worden verkleind en locatiegegevens worden verwijderd. Komt het formulier terug, kies de foto dan opnieuw." }
+                img(.id("thumbnail"), .class("thumbnail"), .alt("De gekozen foto"), .custom(name: "hidden", value: ""))
             }
-            text("altText", "Description of the picture", limit: SubmissionLimits.title, hint: "Required with a picture, for readers who can't see it.")
-            text("caption", "Caption (optional)", limit: SubmissionLimits.title)
-            text("credit", "Picture credit (optional)", limit: SubmissionLimits.name)
+            text("altText", "Beschrijving van de foto", limit: SubmissionLimits.title, hint: "Verplicht bij een foto, voor lezers die haar niet kunnen zien.")
+            text("caption", "Bijschrift (optioneel)", limit: SubmissionLimits.title)
+            text("credit", "Fotograaf of bron (optioneel)", limit: SubmissionLimits.name)
         }
     }
 
     @HTMLBuilder
     private var agendaFields: some HTML {
         fieldset {
-            legend { "The event" }
-            text("subject", "Subject", limit: SubmissionLimits.title, required: true)
-            text("place", "Place", limit: SubmissionLimits.name, required: true)
+            legend { "De gebeurtenis" }
+            text("subject", "Onderwerp", limit: SubmissionLimits.title, required: true)
+            text("place", "Plaats", limit: SubmissionLimits.name, required: true)
             div(.class("field")) {
-                label(.for("eventDate")) { "Date and time (optional)" }
+                label(.for("eventDate")) { "Datum en tijd (optioneel)" }
                 input(.type(.datetimeLocal), .id("eventDate"), .name("eventDate"), .value(fields["eventDate"]))
             }
-            text("link", "Link", limit: SubmissionLimits.link, required: true, hint: "Must start with http:// or https://")
-            area("summary", "Summary", rows: 4, limit: SubmissionLimits.summary, required: true)
+            text("link", "Link", limit: SubmissionLimits.link, required: true, hint: "Begint met http:// of https://")
+            area("summary", "Samenvatting", rows: 4, limit: SubmissionLimits.summary, required: true)
         }
     }
 
     @HTMLBuilder
     private var quoteFields: some HTML {
         fieldset {
-            legend { "The quote" }
+            legend { "De quote" }
             area("quote", "Quote", rows: 3, limit: SubmissionLimits.summary, required: true)
-            text("speaker", "Who said it", limit: SubmissionLimits.name, required: true)
+            text("speaker", "Wie zei het", limit: SubmissionLimits.name, required: true)
             area("context", "Context", rows: 4, limit: SubmissionLimits.summary, required: true,
-                 hint: "When and where it was said.")
-            text("sourceLink", "Source link", limit: SubmissionLimits.link, required: true, hint: "Must start with http:// or https://")
+                 hint: "Wanneer en waar het gezegd is.")
+            text("sourceLink", "Link naar de bron", limit: SubmissionLimits.link, required: true, hint: "Begint met http:// of https://")
         }
     }
 
@@ -271,25 +272,26 @@ package struct ContributionPreview: HTML, Sendable {
             StoryPreview(
                 story: Story(
                     category: StoryCategory(rawValue: fields["category"]) ?? .news, priority: .normal,
-                    title: value("title", "Your headline"), summary: value("summary", "Your summary appears here."),
+                    title: value("title", "Je kop"), summary: value("summary", "Hier verschijnt je samenvatting."),
                     slug: "preview",
-                    author: value("name", "Your name")
+                    author: value("name", "Je naam")
                 ),
-                bodyHTML: markdownToHTML(value("body", "Your article text appears here."))
+                bodyHTML: markdownToHTML(value("body", "Hier verschijnt je tekst.")),
+                labels: (front: "Voorpagina", article: "Artikelpagina")
             )
         case .agenda:
             h2(.class("preview-label")) { "Agenda" }
             div(.class("preview-frame broadsheet")) {
                 AgendaSection(points: [AgendaPoint(
-                    subject: value("subject", "Subject"), place: value("place", "Place"), link: link("link"),
-                    summary: value("summary", "Your summary appears here.")
+                    subject: value("subject", "Onderwerp"), place: value("place", "Plaats"), link: link("link"),
+                    summary: value("summary", "Hier verschijnt je samenvatting.")
                 )])
             }
         case .quote:
-            h2(.class("preview-label")) { "Quoted" }
+            h2(.class("preview-label")) { "Quotes" }
             div(.class("preview-frame broadsheet")) {
                 QuotedSection(items: [QuotedItem(
-                    quote: value("quote", "The quote"), speaker: value("speaker", "Speaker"),
+                    quote: value("quote", "De quote"), speaker: value("speaker", "Spreker"),
                     context: value("context", "Context"), sourceLink: link("sourceLink")
                 )])
             }
@@ -301,7 +303,8 @@ package struct ContributionPreview: HTML, Sendable {
 package struct ThankYouPage: HTMLDocument {
     package init() {}
 
-    package var title: String { "Thank you — Het Grootboek" }
+    package var title: String { "Bedankt — Het Grootboek" }
+    package var lang: String { "nl" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -312,13 +315,13 @@ package struct ThankYouPage: HTMLDocument {
 
     package var body: some HTML {
         header(.class("editor-bar")) {
-            span(.class("editor-brand")) { "Het Grootboek · Contribute" }
-            a(.href("/"), .class("editor-link")) { "← The paper" }
+            span(.class("editor-brand")) { "Het Grootboek · Schrijf mee" }
+            a(.href("/"), .class("editor-link")) { "← Naar de krant" }
         }
         main(.class("editor-main")) {
-            h1 { "Thank you" }
-            p { "Your contribution is on its way to the editors. They decide what appears in the paper, and when." }
-            p { a(.href("/contribute")) { "Send something else" } }
+            h1 { "Bedankt" }
+            p { "Je bijdrage is onderweg naar de redactie. Zij bepaalt wat er in de krant komt, en wanneer." }
+            p { a(.href("/contribute")) { "Nog iets insturen" } }
         }
     }
 }

@@ -6,7 +6,7 @@ package struct QuotedSection: HTML {
 
     package var body: some HTML {
         section(.class("rail-section quoted-section")) {
-            h3(.class("rail-header")) { "Quoted" }
+            h3(.class("rail-header")) { "Quotes" }
 
             for item in items {
                 details(.class("quote-card")) {
@@ -17,7 +17,7 @@ package struct QuotedSection: HTML {
                     div(.class("quote-details")) {
                         p(.class("quote-context")) { item.context }
                         a(.href(item.sourceLink), .class("quote-source-link")) {
-                            "Read original source →"
+                            "Lees de oorspronkelijke bron →"
                         }
                     }
                 }

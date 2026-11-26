@@ -543,9 +543,15 @@ package enum BroadsheetStyles {
         letter-spacing: 0.01em;
     }
 
+    .masthead-meta span:first-child { justify-self: start; }
+    .masthead-edition { justify-self: end; display: flex; gap: 1.25rem; }
+    .masthead-contribute { color: var(--ink-primary); text-decoration: underline; text-underline-offset: 3px; }
+    @media (max-width: 640px) { .masthead-meta span:first-child, .masthead-edition { justify-self: center; } }
+
     .masthead-meta {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 1rem;
         align-items: center;
         font-family: var(--font-sans);
         font-size: 0.72rem;
@@ -626,7 +632,8 @@ package enum BroadsheetStyles {
 
     @media (max-width: 640px) {
         .masthead-meta {
-            flex-direction: column;
+            grid-template-columns: 1fr;
+            justify-items: center;
             gap: 0.25rem;
         }
 

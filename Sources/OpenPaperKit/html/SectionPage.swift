@@ -29,6 +29,7 @@ package struct SectionPage: HTMLDocument {
     }
 
     package var title: String { "\(section.displayTitle) — \(metadata.paperTitle)" }
+    package var lang: String { "nl" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -68,7 +69,7 @@ package struct SectionPage: HTMLDocument {
                             span(.class("quote-speaker")) { "— \(item.speaker)" }
                             p(.class("quote-context")) { item.context }
                             a(.href(item.sourceLink), .class("quote-source-link")) {
-                                "Read original source →"
+                                "Lees de oorspronkelijke bron →"
                             }
                         }
                     }

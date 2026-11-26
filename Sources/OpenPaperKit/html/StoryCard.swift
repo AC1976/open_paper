@@ -43,20 +43,20 @@ package struct StoryCard: HTML {
             case (.news, .high):
                 div(.class("badge-breaking")) {
                     span(.class("live-dot"))
-                    span { "BREAKING NEWS" }
+                    span { "LAATSTE NIEUWS" }
                 }
 
             case (.background, .high):
-                span(.class("badge-must-read")) { "MUST READ · ANALYSIS" }
+                span(.class("badge-must-read")) { "AANRADER · ANALYSE" }
 
             case (.opinion, .high):
-                span(.class("badge-must-read")) { "MUST READ · OPINION" }
+                span(.class("badge-must-read")) { "AANRADER · OPINIE" }
 
             case (.background, .normal):
-                span(.class("kicker")) { "ANALYSIS & BACKGROUND" }
+                span(.class("kicker")) { "ANALYSE & ACHTERGROND" }
 
             case (.opinion, .normal):
-                span(.class("kicker")) { "OPINION" }
+                span(.class("kicker")) { "OPINIE" }
 
             case (.news, .normal):
                 EmptyHTML()
