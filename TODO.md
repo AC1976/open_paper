@@ -38,10 +38,13 @@ the items with that date.
       after today (Europe/Amsterdam) is visible. `/` shows the latest date that
       has items. `/editor/issues/{date}` shows a date's items, sets the layout
       and previews. The compose page and Publish button are gone.
-- [x] **C. News desk** (`/editor`). Submitted items with type, author and time
-      received; filed and rejected below. On an item: save, "Save and file" with
-      a date, reject, or send back to the desk. Category and priority are set
-      on the same page.
+- [x] **C. News desk** (`/editor`), laid out like a mail inbox: folders (News
+      desk, Published, Archive) and their items on the left, the open item on
+      the right. Publish (with a date), Archive, Back to desk, Preview (opens
+      over the page) and Save sit above it; publishing or archiving moves on to
+      the next item. Category and priority are set in the same form.
+      "Archived" is stored as the status `rejected`.
+  - [ ] No search, no selecting several items at once, no keyboard shortcuts.
   - [x] Contributor name and email are shown on the desk and the item page.
   - [ ] No manual order or lead choice within a date (priority, then time received).
   - [x] Advertisements run from a first through a last day (migration `v9`;

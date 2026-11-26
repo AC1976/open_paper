@@ -30,27 +30,20 @@ package struct EditorBar: HTML {
     }
 }
 
-/// `/editor`, the news desk: submissions waiting to be filed, then what is
-/// already filed or rejected. Click a title to edit, file or reject it.
-package struct EditorHomePage: HTMLDocument {
-    package let desk: [DeskEntry]
-    package let waiting: [StagedUpload]
-    package let filed: [DeskEntry]
-    package let rejected: [DeskEntry]
+/// What the "Preview" button shows: the item as readers will see it, or why it
+/// cannot be shown yet.
+package struct PreviewPage: HTMLDocument {
+    package let parsed: ParsedUpload?
+    package let picture: Picture?
     package let problems: [String]
 
-    package init(
-        desk: [DeskEntry], waiting: [StagedUpload], filed: [DeskEntry] = [],
-        rejected: [DeskEntry] = [], problems: [String] = []
-    ) {
-        self.desk = desk
-        self.waiting = waiting
-        self.filed = filed
-        self.rejected = rejected
+    package init(parsed: ParsedUpload?, picture: Picture? = nil, problems: [String] = []) {
+        self.parsed = parsed
+        self.picture = picture
         self.problems = problems
     }
 
-    package var title: String { "Editor — News desk" }
+    package var title: String { "Preview" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -60,106 +53,29 @@ package struct EditorHomePage: HTMLDocument {
     }
 
     package var body: some HTML {
-        EditorBar()
-
-        main(.class("editor-main")) {
-            h1 { "News desk (\(desk.count))" }
-            if desk.isEmpty {
-                p(.class("empty")) { "Nothing waiting. New submissions appear here." }
-            } else {
-                DeskTable(entries: desk, dateHeading: "Received")
-            }
-
-            h2 { "Upload" }
+        main(.class("preview-page")) {
             if !problems.isEmpty {
                 div(.class("problems")) {
-                    p { "The file was not uploaded:" }
+                    p { "Fix this to see the preview:" }
                     ul {
                         for problem in problems { li { problem } }
                     }
                 }
             }
-            form(.method(.post), .action("/editor/uploads"), .enctype(.multipartFormData), .class("upload-form")) {
-                div(.class("field")) {
-                    label(.for("kind")) { "Type" }
-                    select(.id("kind"), .name("kind")) {
-                        for kind in [ItemKind.story, .agendaPoint, .quotedItem, .advertisement] {
-                            option(.value(kind.rawValue)) { kind.label }
-                        }
-                    }
-                }
-                div(.class("field grow")) {
-                    label(.for("file")) { "Markdown file" }
-                    input(.type(.file), .id("file"), .name("file"), .accept(".md,text/markdown,text/plain"), .required)
-                }
-                button(.type(.submit), .class("button primary")) { "Upload and review" }
-            }
-
-            if !waiting.isEmpty {
-                h2 { "Uploads waiting for review" }
-                table(.class("item-table")) {
-                    thead {
-                        tr { th { "File" }; th { "Type" }; th { "Uploaded" } }
-                    }
-                    tbody {
-                        for upload in waiting {
-                            tr {
-                                td { a(.href("/editor/uploads/\(upload.id.uuidString)")) { upload.filename } }
-                                td { upload.kind.label }
-                                td { EditorDates.display(upload.createdAt) }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if !filed.isEmpty {
-                h2 { "Filed (\(filed.count))" }
-                DeskTable(entries: filed, dateHeading: "Publish date")
-            }
-
-            if !rejected.isEmpty {
-                details {
-                    summary { "Rejected (\(rejected.count))" }
-                    DeskTable(entries: rejected, dateHeading: "Received")
-                }
-            }
-        }
-    }
-}
-
-/// Items as a table; filed items show their publish date, others when they came in.
-private struct DeskTable: HTML {
-    let entries: [DeskEntry]
-    let dateHeading: String
-
-    var body: some HTML {
-        table(.class("item-table")) {
-            thead {
-                tr { th { "Title" }; th { "Type" }; th { "Contributor" }; th { dateHeading } }
-            }
-            tbody {
-                for entry in entries {
-                    tr {
-                        td { a(.href("/editor/items/\(entry.id.uuidString)")) { entry.title } }
-                        td { entry.kind.label }
-                        td {
-                            if let contributor = entry.contributor {
-                                contributor.name
-                                a(.href("mailto:\(contributor.email)"), .class("contributor-email")) { contributor.email }
-                            } else {
-                                entry.author ?? "—"
-                            }
-                        }
-                        td {
-                            if let first = entry.publishDate {
-                                EditorDates.run(from: first, until: entry.publishUntil)
-                            } else {
-                                EditorDates.display(entry.uploadedAt)
-                            }
-                        }
-                    }
-                }
+            switch parsed {
+            case .story(let story, _, let html)?:
+                StoryPreview(story: story, bodyHTML: html, picture: picture)
+            case .agendaPoint(let point)?:
+                h2(.class("preview-label")) { "Agenda" }
+                div(.class("preview-frame broadsheet")) { AgendaSection(points: [point]) }
+            case .quotedItem(let quote)?:
+                h2(.class("preview-label")) { "Quoted" }
+                div(.class("preview-frame broadsheet")) { QuotedSection(items: [quote]) }
+            case .advertisement(let ad)?:
+                h2(.class("preview-label")) { "Advertisement" }
+                div(.class("preview-frame broadsheet preview-ad")) { AdvertisementCard(ad: ad) }
+            case nil:
+                EmptyHTML()
             }
         }
     }

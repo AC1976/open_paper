@@ -91,7 +91,12 @@ private func problems(_ kind: ContributionKind, _ fields: ContributionFields, im
         #expect(desk.count == 3)
         #expect(desk.allSatisfy { $0.contributor == Contributor(name: "Jane Writer", email: "jane@example.org") })
         #expect(try db.latestIssueDate(asOf: "2099-01-01") == nil)        // nothing is public until filed
-        let html = EditorHomePage(desk: desk, waiting: []).render()
+        let html = NewsDeskPage(
+            desk: desk,
+            selected: DeskItem(id: desk[0].id, parsed: try #require(try db.item(desk[0].id)), actionBase: "/editor/items/x",
+                               filing: Filing(status: .submitted, publishDate: nil, suggestedDate: "2026-11-20",
+                                              contributor: desk[0].contributor))
+        ).render()
         #expect(html.contains("jane@example.org") && html.contains("Jane Writer"))
     }
 

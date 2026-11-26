@@ -19,12 +19,6 @@ package enum EditorStyles {
         color: #fff;
     }
     .editor-brand { font-weight: 700; letter-spacing: 0.02em; }
-    .review-form fieldset.filing { margin-top: 0.5rem; border-color: #2b6cb0; }
-    .filing .actions { margin-bottom: 0; flex-wrap: wrap; }
-    .editor-main details { margin-top: 2rem; }
-    .editor-main summary { cursor: pointer; font-size: 0.95rem; margin-bottom: 0.6rem; }
-    .contributor-email { display: block; font-size: 0.8rem; }
-
     /* Contribute pages */
     .contribute-intro { grid-column: 1 / -1; }
     .contribute-intro p { font-size: 0.95rem; color: var(--ink-secondary); max-width: 60ch; }
@@ -53,7 +47,6 @@ package enum EditorStyles {
         align-items: start;
     }
     .review > * { min-width: 0; }
-    .review.single { grid-template-columns: minmax(340px, 640px); justify-content: center; }
     .review-title { font-size: 1.4rem; margin-bottom: 1rem; }
 
     /* Form */
@@ -152,33 +145,97 @@ package enum EditorStyles {
         margin: 0.75rem 0;
     }
 
-    /* Inbox page */
+    /* Plain pages (nothing published yet) */
     .editor-main { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
     .editor-main h1 { font-size: 1.4rem; margin-bottom: 1rem; }
-    .editor-main h2 { font-size: 1.05rem; margin: 2rem 0 0.6rem; }
-    .upload-form {
-        display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end;
-        background: #fff; border: 1px solid var(--border-light); border-radius: 6px;
-        padding: 1rem; margin-bottom: 1rem;
-    }
-    .upload-form .field { margin-bottom: 0; }
-    .upload-form .field.grow { flex: 1 1 260px; }
-    .item-table {
-        width: 100%; border-collapse: collapse; background: #fff;
-        border: 1px solid var(--border-light); font-size: 0.9rem;
-    }
-    .item-table th, .item-table td { text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border-light); }
-    .item-table th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-secondary); }
     .empty { color: var(--ink-muted); font-size: 0.9rem; }
     .problems {
         font-size: 0.9rem; background: #fdecea; border-left: 3px solid #c0392b;
         padding: 0.6rem 0.9rem; margin-bottom: 1rem;
     }
     .problems ul { padding-left: 1.2rem; margin-top: 0.3rem; }
-    .item-fields { background: #fff; border: 1px solid var(--border-light); border-radius: 6px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
-    .item-fields dt { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-secondary); margin-top: 0.8rem; }
-    .item-fields dt:first-child { margin-top: 0; }
-    .item-fields dd { margin: 0.15rem 0 0; font-size: 0.95rem; overflow-wrap: anywhere; }
+
+    /* News desk: folders and list on the left, the open item on the right.
+       Each column scrolls by itself. */
+    .desk-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+    .desk { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); }
+    .desk-list { overflow-y: auto; background: #fff; border-right: 1px solid var(--border-light); }
+    .desk-reading { overflow-y: auto; min-width: 0; }
+
+    .desk-folders {
+        display: flex; position: sticky; top: 0; z-index: 1;
+        background: #fff; border-bottom: 1px solid var(--border-light);
+    }
+    .desk-folders a {
+        flex: 1; text-align: center; padding: 0.75rem 0.4rem; text-decoration: none;
+        font-size: 0.85rem; font-weight: 600; color: var(--ink-secondary); border-bottom: 3px solid transparent;
+    }
+    .desk-folders a[aria-current] { color: var(--ink-primary); border-bottom-color: #2b6cb0; }
+    .desk-count { margin-left: 0.35rem; font-weight: 400; color: var(--ink-muted); }
+
+    .desk-upload { padding: 0.65rem 1rem; border-bottom: 1px solid var(--border-light); }
+    .desk-upload summary { cursor: pointer; font-size: 0.85rem; color: #1d4f91; }
+    .desk-upload form, .desk-upload .problems { margin-top: 0.75rem; }
+
+    .desk-empty { padding: 1rem; }
+    .desk-rows { list-style: none; margin: 0; padding: 0; }
+    .desk-row {
+        display: flex; flex-direction: column; gap: 0.2rem; padding: 0.7rem 1rem;
+        text-decoration: none; color: var(--ink-primary);
+        border-bottom: 1px solid var(--border-light); border-left: 3px solid transparent;
+    }
+    .desk-row:hover { background: #f5f8fb; }
+    .desk-row[aria-current] { background: #e8f1fa; border-left-color: #2b6cb0; }
+    .desk-row-top { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.78rem; color: var(--ink-secondary); }
+    .desk-row-from { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .desk-row-date { flex: none; }
+    .desk-row-title { font-size: 0.95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+    .desk-row-tags { display: flex; gap: 0.4rem; }
+    .desk-tag {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+        color: var(--ink-secondary); background: #efefec; border-radius: 3px; padding: 0.1rem 0.35rem;
+    }
+    .desk-tag.state { background: #fff1c2; color: #6b4e00; }
+
+    .desk-toolbar {
+        display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; align-items: end;
+        position: sticky; top: 0; z-index: 1; padding: 0.65rem 1.5rem;
+        background: #fff; border-bottom: 1px solid var(--border-light);
+    }
+    .desk-publish, .desk-edit { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
+    .desk-date { display: flex; flex-direction: column; font-size: 0.72rem; font-weight: 600; color: var(--ink-secondary); }
+    .desk-date input {
+        font: inherit; font-size: 0.9rem; font-weight: 400; padding: 0.42rem 0.5rem;
+        border: 1px solid #c9c9c9; border-radius: 4px;
+    }
+    .default-submit { position: absolute; left: -10000px; width: 1px; height: 1px; }
+    .desk-content { max-width: 800px; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
+    .desk-heading { margin-bottom: 1rem; }
+    .desk-heading h1 { font-family: var(--font-serif); font-size: 1.6rem; line-height: 1.25; margin-bottom: 0.4rem; overflow-wrap: anywhere; }
+    .desk-heading .status { margin-bottom: 0.2rem; }
+    .desk-picture { display: block; width: auto; height: auto; max-width: 100%; max-height: 22rem; margin: 0 auto 0.9rem; }
+    .desk-notice {
+        margin: 0; padding: 0.6rem 1.5rem; font-size: 0.9rem;
+        background: #e7f4e8; border-bottom: 1px solid #bfdfc2;
+    }
+    .desk-placeholder { padding: 3rem 1.5rem; text-align: center; }
+    .desk-back { display: none; }
+
+    /* The preview, over the news desk */
+    .preview-dialog {
+        width: min(960px, 94vw); height: 90vh; max-width: none; max-height: none; margin: auto; padding: 0;
+        border: none; border-radius: 8px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+    .preview-dialog[open] { display: flex; flex-direction: column; }
+    .preview-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+    .preview-dialog-bar {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.6rem 1rem; border-bottom: 1px solid var(--border-light);
+    }
+    #preview-holder { flex: 1; min-height: 0; }
+    #preview-holder iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .preview-page { max-width: 760px; margin: 0 auto; padding: 1.25rem; }
+    .preview-ad { max-width: 320px; }
 
     /* Compose-an-issue page */
     .review-heading { grid-column: 1 / -1; margin-bottom: 0; }
@@ -215,6 +272,17 @@ package enum EditorStyles {
     @media (max-width: 900px) {
         .review { grid-template-columns: 1fr; }
         .review-preview { position: static; }
+    }
+
+    /* Narrow screens show the list or the open item, one at a time. */
+    @media (max-width: 760px) {
+        .desk { grid-template-columns: minmax(0, 1fr); }
+        .desk-shell.show-list .desk-reading { display: none; }
+        .desk-shell.show-item .desk-list { display: none; }
+        .desk-shell.show-item .desk-back { display: block; padding: 0.6rem 1rem; font-size: 0.9rem; }
+        .desk-toolbar { position: static; padding: 0.65rem 1rem; }
+        .desk-content { padding: 1rem 1rem 3rem; }
+        .desk-content .field-row { flex-direction: column; gap: 0; }
     }
     """
 }

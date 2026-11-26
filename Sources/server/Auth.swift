@@ -25,8 +25,11 @@ struct SameOriginOnly: RouterMiddleware {
             }
         }
         var response = try await next(request, context)
-        // Editor pages must not be framed by other sites or kept in caches.
-        if let frameOptions = HTTPField.Name("X-Frame-Options") { response.headers[frameOptions] = "DENY" }
+        // Editor pages must not be framed by other sites or kept in caches. Only
+        // the preview is shown in a frame, by the news desk itself.
+        if let frameOptions = HTTPField.Name("X-Frame-Options") {
+            response.headers[frameOptions] = request.uri.path.hasSuffix("/preview") ? "SAMEORIGIN" : "DENY"
+        }
         response.headers[.cacheControl] = "no-store"
         return response
     }

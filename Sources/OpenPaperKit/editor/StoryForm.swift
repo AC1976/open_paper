@@ -37,6 +37,11 @@ package enum EditorDates {
         return "\(longDay(first)) to \(longDay(last))"
     }
 
+    /// "20 Nov" for a "yyyy-MM-dd" day, as the news desk list shows it.
+    package static func shortDay(_ text: String) -> String {
+        parseDay(text).map { format($0, "d MMM") } ?? text
+    }
+
     /// For the inbox list: "20 Nov 2026, 06:00".
     package static func display(_ date: Date) -> String { format(date, "d MMM yyyy, HH:mm") }
 
@@ -143,7 +148,7 @@ struct FormReader {
     }
 }
 
-/// Turns the submitted story form (`ReviewCard`) back into a `Story`.
+/// Turns the submitted story form (`StoryInputs`) back into a `Story`.
 package enum StoryForm {
     /// Largest picture file accepted. It is scaled down before it is stored.
     package static let maxImageBytes = 15 * 1024 * 1024
@@ -167,7 +172,7 @@ package enum StoryForm {
         let priority = form.text("priority").flatMap(Int.init).flatMap(StoryPriority.init(rawValue:))
         if priority == nil { reader.problems.append("Choose a priority.") }
 
-        // The review card has no date fields (the publish date is set by filing),
+        // The form has no date fields (the publish date is set by filing),
         // so dates that came with the upload are kept.
         let publishedAt = form.rawText("publishedAt") == nil ? existing?.publishedAt : reader.date("publishedAt", "Published")
         let updatedAt = form.rawText("updatedAt") == nil ? existing?.updatedAt : reader.date("updatedAt", "Updated")

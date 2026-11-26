@@ -9,13 +9,13 @@ let maxRequestBytes = 20 * 1024 * 1024
 
 /// The editor.
 ///
-///     GET  /editor                          news desk: submissions, upload form, filed and rejected
+///     GET  /editor                          news desk; ?folder=published or archive
 ///     POST /editor/uploads                  read the file, stage it, redirect to review
 ///     ...  /editor/uploads/{id}             review an upload (see "item pages" below)
-///     ...  /editor/items/{id}               edit a saved item (see "item pages" below)
+///     ...  /editor/items/{id}               the news desk with this item open (see below)
 ///     POST /editor/items/{id}/file          save it and give it a publish date
 ///                                           (advertisements: a first and last day)
-///     POST /editor/items/{id}/reject        reject it
+///     POST /editor/items/{id}/archive       take it out of the paper
 ///     POST /editor/items/{id}/desk          take it back to the news desk
 ///     GET  /editor/issues                   open an edition (today, or ?date=yyyy-MM-dd)
 ///     GET  /editor/issues/{date}            what is filed for that date, and its layout
@@ -24,23 +24,30 @@ let maxRequestBytes = 20 * 1024 * 1024
 ///
 /// Item pages, under both prefixes above:
 ///
-///     GET  {prefix}           the review / edit page
+///     GET  {prefix}           the news desk with the item open
 ///     POST {prefix}           save
-///     POST {prefix}/preview   re-render a story with the edited fields (not saved)
-///     POST {prefix}/cancel    discard the upload / leave the edit
+///     POST {prefix}/preview   show the item with the edited fields (not saved)
+///     POST {prefix}/cancel    discard an upload
 func addEditorRoutes(to router: some RouterMethods<AppRequestContext>, database: PaperDatabase) {
 
     // MARK: Home and uploads
 
     router.get("/editor") { request, context -> Response in
-        try page(of: try homePage(database), request, context)
+        let folder = request.uri.queryParameters["folder"].flatMap { DeskFolder(rawValue: String($0)) } ?? .desk
+        // Like a mail program, open the first item of the folder.
+        let first = try entries(in: folder, database).first
+        let target = try first.flatMap { try savedItem($0.id, database) }
+        return try deskPage(
+            database, request, context, folder: folder, selected: target?.deskItem(), autoSelected: true,
+            notice: try notice(request, database, showing: target?.id)
+        )
     }
 
     router.post("/editor/uploads") { request, context -> Response in
         let form = try await readForm(request)
 
         func reject(_ message: String) throws -> Response {
-            try page(of: try homePage(database, problems: [message]), request, context, status: .unprocessableContent)
+            try deskPage(database, request, context, uploadProblems: [message], status: .unprocessableContent)
         }
 
         guard let kind = form.text("kind").flatMap(ItemKind.init(rawValue:)) else {
@@ -78,65 +85,55 @@ func addEditorRoutes(to router: some RouterMethods<AppRequestContext>, database:
             throw HTTPError(.internalServerError, message: "\(staged.filename) could not be read again: \(error)")
         }
         return ItemTarget(
+            id: id,
             base: "/editor/uploads/\(id.uuidString)",
-            returnTo: "/editor",
-            heading: "Review \(staged.kind.label.lowercased())",
             original: parsed,
-            stagedID: id
+            stagedID: id,
+            received: staged.createdAt
         )
     }
 
-    // A saved item. Save and Cancel go back to where it lives now.
-    let savedItem: @Sendable (AppRequestContext) throws -> ItemTarget = { context in
+    // A saved item.
+    let saved: @Sendable (AppRequestContext) throws -> ItemTarget = { context in
         let id = try context.parameters.require("id", as: UUID.self)
-        guard let item = try database.item(id), let entry = try database.entry(id) else {
+        guard let target = try savedItem(id, database) else {
             throw HTTPError(.notFound, message: "This item was not found.")
         }
-        return ItemTarget(
-            base: "/editor/items/\(id.uuidString)",
-            returnTo: entry.publishDate.map { "/editor/issues/\($0)" } ?? "/editor",
-            heading: "Edit \(item.kind.label.lowercased())",
-            original: item,
-            stagedID: nil,
-            filing: Filing(
-                status: entry.status, publishDate: entry.publishDate,
-                suggestedDate: EditorDates.today(), contributor: entry.contributor,
-                takesRange: entry.kind == .advertisement, publishUntil: entry.publishUntil
-            ),
-            picture: try database.picture(ofItem: id)
-        )
+        return target
     }
-    addItemRoutes(to: router, prefix: "/editor/items/:id", database: database, resolve: savedItem)
+    addItemRoutes(to: router, prefix: "/editor/items/:id", database: database, resolve: saved)
 
-    // MARK: Filing
+    // MARK: Publishing and archiving
 
     router.post("/editor/items/:id/file") { request, context -> Response in
-        let target = try savedItem(context)
+        let target = try saved(context)
         let form = try await readForm(request)
         let date = form.text("publishDate") ?? ""
-        // Only the advertisement's edit page sends a last day.
+        // Only advertisements send a last day.
         let until = form.text("publishUntil")
         do {
             // Check the dates first, so a bad date saves nothing.
             try PaperDatabase.checkRun(from: date, until: until)
             try save(form, for: target, in: database)
-            try database.file(target.original.id, on: date, until: until)
-            return .redirect(to: "/editor/issues/\(date)")
+            return try move(target.id, done: "published", in: database) {
+                try database.file(target.id, on: date, until: until)
+            }
         } catch let problems as FormProblems {
-            return try render(target, request, context, problems: problems.messages)
+            return try render(target, database, request, context, problems: problems.messages)
         } catch let error as SaveError {
-            return try render(target, request, context, problems: [error.description])
+            return try render(target, database, request, context, problems: [error.description])
         }
     }
 
-    router.post("/editor/items/:id/reject") { _, context -> Response in
-        try database.reject(try context.parameters.require("id", as: UUID.self))
-        return .redirect(to: "/editor")
+    router.post("/editor/items/:id/archive") { _, context -> Response in
+        let id = try context.parameters.require("id", as: UUID.self)
+        return try move(id, done: "archived", in: database) { try database.reject(id) }
     }
 
     router.post("/editor/items/:id/desk") { _, context -> Response in
-        try database.returnToDesk(try context.parameters.require("id", as: UUID.self))
-        return .redirect(to: "/editor")
+        let id = try context.parameters.require("id", as: UUID.self)
+        try database.returnToDesk(id)
+        return .redirect(to: itemPath(id, done: "returned", about: id))
     }
 
     // MARK: Issues
@@ -177,44 +174,71 @@ func addEditorRoutes(to router: some RouterMethods<AppRequestContext>, database:
 
 // MARK: - Item pages
 
-/// What an item page is working on: where it posts, where it returns to, and
-/// the item's current values.
+/// What an item page is working on: where it posts and the item's current values.
 private struct ItemTarget: Sendable {
+    /// The item's id, or the upload's.
+    let id: UUID
     let base: String
-    let returnTo: String
-    let heading: String
     let original: ParsedUpload
     /// Set when the item is an upload that has not been saved yet.
     let stagedID: UUID?
-    /// Set when the item is saved, so it can be filed.
+    /// Set when the item is saved, so it can be published.
     var filing: Filing? = nil
     /// A story's current picture.
     var picture: Picture? = nil
+    var received: Date? = nil
+
+    func deskItem(problems: [String] = []) -> DeskItem {
+        DeskItem(
+            id: id, parsed: original, actionBase: base, filing: filing,
+            picture: picture, received: received, problems: problems
+        )
+    }
 }
 
-/// Validates the submitted fields and saves the item.
-private func save(_ form: MultipartForm, for target: ItemTarget, in database: PaperDatabase) throws {
-    let edited: ParsedUpload
-    var picture = PictureChange.unchanged
+private func savedItem(_ id: UUID, _ database: PaperDatabase) throws -> ItemTarget? {
+    guard let item = try database.item(id), let entry = try database.entry(id) else { return nil }
+    return ItemTarget(
+        id: id,
+        base: "/editor/items/\(id.uuidString)",
+        original: item,
+        stagedID: nil,
+        filing: Filing(
+            status: entry.status, publishDate: entry.publishDate,
+            suggestedDate: EditorDates.today(), contributor: entry.contributor,
+            takesRange: entry.kind == .advertisement, publishUntil: entry.publishUntil
+        ),
+        picture: try database.picture(ofItem: id),
+        received: entry.uploadedAt
+    )
+}
+
+/// The item as the form now describes it, and what happens to its picture.
+private func edited(_ form: MultipartForm, for target: ItemTarget) throws -> (item: ParsedUpload, picture: PictureChange) {
     switch target.original {
     case .story(let original, _, _):
         let result = try StoryForm.story(from: form, keeping: original, hasPicture: target.picture != nil)
-        edited = .story(result.story, markdown: result.body, html: "")
-        picture = result.picture
+        return (.story(result.story, markdown: result.body, html: markdownToHTML(result.body)), result.picture)
     case .agendaPoint:
-        edited = .agendaPoint(try ItemForm.agendaPoint(from: form))
+        return (.agendaPoint(try ItemForm.agendaPoint(from: form)), .unchanged)
     case .quotedItem:
-        edited = .quotedItem(try ItemForm.quotedItem(from: form))
+        return (.quotedItem(try ItemForm.quotedItem(from: form)), .unchanged)
     case .advertisement(let original):
-        edited = .advertisement(try ItemForm.advertisement(from: form, keeping: original))
+        return (.advertisement(try ItemForm.advertisement(from: form, keeping: original)), .unchanged)
     }
+}
+
+/// Validates the submitted fields and saves the item; returns its id.
+@discardableResult
+private func save(_ form: MultipartForm, for target: ItemTarget, in database: PaperDatabase) throws -> UUID {
+    let (item, picture) = try edited(form, for: target)
     // An upload becomes a new item; only an edit page changes an existing one.
     if let staged = target.stagedID {
         let new: NewPicture? = if case .replace(let chosen) = picture { chosen } else { nil }
-        try database.submit(edited, picture: new, discarding: staged)
-    } else {
-        try database.update(edited, id: target.original.id, picture: picture)
+        return try database.submit(item, picture: new, discarding: staged)
     }
+    try database.update(item, id: target.original.id, picture: picture)
+    return target.original.id
 }
 
 private func addItemRoutes(
@@ -224,76 +248,144 @@ private func addItemRoutes(
     resolve: @escaping @Sendable (AppRequestContext) throws -> ItemTarget
 ) {
     router.get(RouterPath(prefix)) { request, context -> Response in
-        try render(try resolve(context), request, context)
+        let target = try resolve(context)
+        return try render(target, database, request, context,
+                          notice: try notice(request, database, showing: target.id))
     }
 
     router.post(RouterPath(prefix)) { request, context -> Response in
         let target = try resolve(context)
         let form = try await readForm(request)
         do {
-            try save(form, for: target, in: database)
-            return .redirect(to: target.returnTo)
+            let id = try save(form, for: target, in: database)
+            return .redirect(to: itemPath(id, done: "saved", about: id))
         } catch let problems as FormProblems {
-            return try render(target, request, context, problems: problems.messages)
+            return try render(target, database, request, context, problems: problems.messages)
         } catch let error as SaveError {
-            return try render(target, request, context, problems: [error.description])
+            return try render(target, database, request, context, problems: [error.description])
         }
     }
 
     router.post(RouterPath(prefix + "/preview")) { request, context -> Response in
         let target = try resolve(context)
-        guard case .story(let original, _, _) = target.original else {
-            return .redirect(to: target.base)
-        }
         let form = try await readForm(request)
         do {
-            let result = try StoryForm.story(from: form, keeping: original, hasPicture: target.picture != nil)
+            let result = try edited(form, for: target)
             return try page(
-                of: ReviewCard(
-                    story: result.story, markdown: result.body, bodyHTML: markdownToHTML(result.body),
-                    actionBase: target.base, heading: target.heading, backHref: target.returnTo,
-                    filing: target.filing, picture: result.picture.applied(to: target.picture)
-                ),
+                of: PreviewPage(parsed: result.item, picture: result.picture.applied(to: target.picture)),
                 request, context
             )
         } catch let problems as FormProblems {
-            return try render(target, request, context, problems: problems.messages)
+            return try page(of: PreviewPage(parsed: nil, problems: problems.messages), request, context)
         }
     }
 
     router.post(RouterPath(prefix + "/cancel")) { _, context -> Response in
         let target = try resolve(context)
         if let id = target.stagedID { try database.discardStaged(id) }
-        return .redirect(to: target.returnTo)
+        return .redirect(to: "/editor")
     }
 }
 
+/// The news desk with `target` open.
 private func render(
     _ target: ItemTarget,
+    _ database: PaperDatabase,
     _ request: Request,
     _ context: AppRequestContext,
-    problems: [String] = []
+    problems: [String] = [],
+    notice: DeskNotice? = nil
 ) throws -> Response {
-    let status: HTTPResponse.Status = problems.isEmpty ? .ok : .unprocessableContent
-    switch target.original {
-    case .story(let story, let markdown, let html):
-        return try page(
-            of: ReviewCard(
-                story: story, markdown: markdown, bodyHTML: html, actionBase: target.base,
-                problems: problems, heading: target.heading, backHref: target.returnTo, filing: target.filing,
-                picture: target.picture
-            ),
-            request, context, status: status
-        )
-    default:
-        return try page(
-            of: ItemEditPage(
-                parsed: target.original, actionBase: target.base, heading: target.heading,
-                backHref: target.returnTo, problems: problems, filing: target.filing
-            ),
-            request, context, status: status
-        )
+    try deskPage(
+        database, request, context,
+        folder: DeskFolder(target.filing?.status ?? .submitted),
+        selected: target.deskItem(problems: problems),
+        notice: notice,
+        status: problems.isEmpty ? .ok : .unprocessableContent
+    )
+}
+
+private func deskPage(
+    _ database: PaperDatabase,
+    _ request: Request,
+    _ context: AppRequestContext,
+    folder: DeskFolder = .desk,
+    selected: DeskItem? = nil,
+    autoSelected: Bool = false,
+    notice: DeskNotice? = nil,
+    uploadProblems: [String] = [],
+    status: HTTPResponse.Status = .ok
+) throws -> Response {
+    let desk = NewsDeskPage(
+        folder: folder,
+        desk: try database.newsDesk(),
+        published: try database.filedItems(),
+        archived: try database.rejectedItems(),
+        uploads: try database.stagedUploads(),
+        selected: selected,
+        autoSelected: autoSelected,
+        notice: notice,
+        uploadProblems: uploadProblems
+    )
+    return try page(of: desk, request, context, status: status)
+}
+
+private func entries(in folder: DeskFolder, _ database: PaperDatabase) throws -> [DeskEntry] {
+    switch folder {
+    case .desk: try database.newsDesk()
+    case .published: try database.filedItems()
+    case .archive: try database.rejectedItems()
     }
+}
+
+/// Changes an item's status. When that takes it out of its folder, the next
+/// item of the folder opens, so an editor can work down the list; otherwise
+/// the item stays open.
+private func move(
+    _ id: UUID, done: String, in database: PaperDatabase, _ change: () throws -> Void
+) throws -> Response {
+    guard let before = try database.entry(id) else {
+        throw HTTPError(.notFound, message: "This item was not found.")
+    }
+    let folder = DeskFolder(before.status)
+    let list = try entries(in: folder, database)
+    try change()
+    guard let after = try database.entry(id), DeskFolder(after.status) != folder else {
+        return .redirect(to: itemPath(id, done: done, about: id))
+    }
+    let index = list.firstIndex { $0.id == id } ?? 0
+    let others = list.filter { $0.id != id }
+    if others.isEmpty {
+        let query = folder == .desk ? "" : "folder=\(folder.rawValue)&"
+        return .redirect(to: "/editor?\(query)done=\(done)&item=\(id.uuidString)")
+    }
+    return .redirect(to: itemPath(others[min(index, others.count - 1)].id, done: done, about: id))
+}
+
+private func itemPath(_ id: UUID, done: String, about: UUID) -> String {
+    "/editor/items/\(id.uuidString)?done=\(done)&item=\(about.uuidString)"
+}
+
+/// The confirmation asked for by `?done=…&item=…`. The words are made here from
+/// the item itself; nothing from the address is shown.
+private func notice(_ request: Request, _ database: PaperDatabase, showing: UUID?) throws -> DeskNotice? {
+    let query = request.uri.queryParameters
+    guard let done = query["done"].map(String.init),
+          let id = query["item"].flatMap({ UUID(uuidString: String($0)) }),
+          let entry = try database.entry(id)
+    else { return nil }
+    let name = "“\(entry.title)”"
+    let text: String
+    switch done {
+    case "saved": text = "Saved \(name)."
+    case "published" where entry.status == .filed:
+        text = "\(name): " + DeskStatus.sentence(
+            entry.status, publishDate: entry.publishDate, until: entry.publishUntil, today: EditorDates.today())
+    case "archived" where entry.status == .rejected: text = "\(name) was archived."
+    case "returned" where entry.status == .submitted: text = "\(name) is back on the news desk."
+    default: return nil
+    }
+    return DeskNotice(text: text, link: id == showing ? nil : "/editor/items/\(id.uuidString)")
 }
 
 // MARK: - Helpers
@@ -312,16 +404,6 @@ private func done(_ request: Request, redirectingTo path: String) -> Response {
         return Response(status: .noContent)
     }
     return .redirect(to: path)
-}
-
-private func homePage(_ database: PaperDatabase, problems: [String] = []) throws -> EditorHomePage {
-    EditorHomePage(
-        desk: try database.newsDesk(),
-        waiting: try database.stagedUploads(),
-        filed: try database.filedItems(),
-        rejected: try database.rejectedItems(),
-        problems: problems
-    )
 }
 
 func readForm(_ request: Request, limit: Int = maxRequestBytes) async throws -> MultipartForm {
