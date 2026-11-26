@@ -16,7 +16,9 @@ the items with that date.
 - A date's front page shows **only the items with that date**.
 - Items filed with a future date appear by themselves when that date arrives
   (paper's time zone, Europe/Amsterdam). There is no Publish button.
-- Advertisements stay editor-only.
+- Advertisements stay editor-only. They are filed with a first and last day
+  and appear in every paper in that range. Advertisements alone do not make a
+  paper.
 
 ### Steps (in order)
 
@@ -42,8 +44,8 @@ the items with that date.
       on the same page.
   - [x] Contributor name and email are shown on the desk and the item page.
   - [ ] No manual order or lead choice within a date (priority, then time received).
-  - [ ] Advertisements take a single publish date, like articles. Confirm, or
-        give them a date range.
+  - [x] Advertisements run from a first through a last day (migration `v9`;
+        ones filed earlier keep their single day).
   - [ ] Edits to an item that is already visible go live at once.
 - [x] **D. Safe to accept strangers.** (`Sources/OpenPaperKit/safety/`)
   - Every upload creates a new item (`submit`); only an edit page changes one.
@@ -101,7 +103,6 @@ the items with that date.
 
 - [ ] A day with nothing filed: `/` currently shows the last day that had items,
       under its own date. Confirm, or show an empty paper.
-- [ ] Do advertisements get a publish date like articles, or a date range?
 - [ ] Do contributors hear back (accepted / rejected)?
 
 ---

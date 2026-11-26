@@ -14,6 +14,7 @@ let maxRequestBytes = 20 * 1024 * 1024
 ///     ...  /editor/uploads/{id}             review an upload (see "item pages" below)
 ///     ...  /editor/items/{id}               edit a saved item (see "item pages" below)
 ///     POST /editor/items/{id}/file          save it and give it a publish date
+///                                           (advertisements: a first and last day)
 ///     POST /editor/items/{id}/reject        reject it
 ///     POST /editor/items/{id}/desk          take it back to the news desk
 ///     GET  /editor/issues                   open an edition (today, or ?date=yyyy-MM-dd)
@@ -99,7 +100,8 @@ func addEditorRoutes(to router: some RouterMethods<AppRequestContext>, database:
             stagedID: nil,
             filing: Filing(
                 status: entry.status, publishDate: entry.publishDate,
-                suggestedDate: EditorDates.today(), contributor: entry.contributor
+                suggestedDate: EditorDates.today(), contributor: entry.contributor,
+                takesRange: entry.kind == .advertisement, publishUntil: entry.publishUntil
             ),
             picture: try database.picture(ofItem: id)
         )
@@ -112,11 +114,13 @@ func addEditorRoutes(to router: some RouterMethods<AppRequestContext>, database:
         let target = try savedItem(context)
         let form = try await readForm(request)
         let date = form.text("publishDate") ?? ""
+        // Only the advertisement's edit page sends a last day.
+        let until = form.text("publishUntil")
         do {
-            // Check the date first, so a bad date saves nothing.
-            guard EditorDates.isDay(date) else { throw SaveError.invalidDate(date) }
+            // Check the dates first, so a bad date saves nothing.
+            try PaperDatabase.checkRun(from: date, until: until)
             try save(form, for: target, in: database)
-            try database.file(target.original.id, on: date)
+            try database.file(target.original.id, on: date, until: until)
             return .redirect(to: "/editor/issues/\(date)")
         } catch let problems as FormProblems {
             return try render(target, request, context, problems: problems.messages)

@@ -1,11 +1,12 @@
 import Foundation
 import GRDB
 
-/// The paper of one date: the items filed for it, ready for the layout planner.
+/// The paper of one date: the items filed for it and the advertisements running
+/// on it, ready for the layout planner.
 package struct IssueContents: Sendable {
     /// "yyyy-MM-dd"
     package let date: String
-    /// 1 for the first date with items, 2 for the next, and so on.
+    /// 1 for the first date with a paper, 2 for the next, and so on.
     package let number: Int
     package let mode: EditionMode
     package let stories: [Story]
@@ -15,8 +16,10 @@ package struct IssueContents: Sendable {
     /// The stories' pictures, by story id.
     package let pictures: [UUID: Picture]
 
+    /// True without a story, agenda point or quote. Advertisements alone do not
+    /// make a paper.
     package var isEmpty: Bool {
-        stories.isEmpty && agendaPoints.isEmpty && quotedItems.isEmpty && advertisements.isEmpty
+        stories.isEmpty && agendaPoints.isEmpty && quotedItems.isEmpty
     }
 
     package var metadata: EditionMetadata {
@@ -45,12 +48,16 @@ package struct IssueContents: Sendable {
 // "Today" is the date in the paper's time zone. Readers never see anything
 // filed for a later date; the functions take `asOf` so tests can choose the day.
 extension PaperDatabase {
-    /// The newest date, up to today, that has items: what `/` shows.
+    /// The newest date, up to today, that has a story, agenda point or quote:
+    /// what `/` shows.
     package func latestIssueDate(asOf today: String = EditorDates.today()) throws -> String? {
         try queue.read { db in
             try String.fetchOne(
                 db,
-                sql: "SELECT MAX(publishDate) FROM items WHERE status = 'filed' AND publishDate <= ?",
+                sql: """
+                    SELECT MAX(publishDate) FROM items
+                    WHERE status = 'filed' AND kind <> 'advertisement' AND publishDate <= ?
+                    """,
                 arguments: [today]
             )
         }
@@ -70,7 +77,7 @@ extension PaperDatabase {
         }
     }
 
-    /// Everything filed for `date`, whether or not that day has arrived (the
+    /// Everything in the paper of `date`, whether or not that day has arrived (the
     /// editor previews future papers; public routes check the date).
     package func issue(on date: String) throws -> IssueContents {
         try queue.read { db in
@@ -78,13 +85,16 @@ extension PaperDatabase {
                 try T.fetchAll(db, sql: """
                     SELECT t.* FROM \(T.databaseTableName) t
                     JOIN items i ON i.id = t.id
-                    WHERE i.status = 'filed' AND i.publishDate = ?
+                    WHERE \(Self.inPaperOfDate)
                     ORDER BY i.uploadedAt, i.rowid
-                    """, arguments: [date])
+                    """, arguments: [date, date])
             }
             let number = try Int.fetchOne(
                 db,
-                sql: "SELECT COUNT(DISTINCT publishDate) FROM items WHERE status = 'filed' AND publishDate <= ?",
+                sql: """
+                    SELECT COUNT(DISTINCT publishDate) FROM items
+                    WHERE status = 'filed' AND kind <> 'advertisement' AND publishDate <= ?
+                    """,
                 arguments: [date]
             ) ?? 0
             let stories = try load(Story.self)

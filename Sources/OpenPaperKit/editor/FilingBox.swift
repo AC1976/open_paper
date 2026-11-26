@@ -7,8 +7,16 @@ package struct Filing: Sendable {
     /// Offered when the item has no date yet.
     package let suggestedDate: String
     package let contributor: Contributor?
+    /// True for advertisements, which run from a first through a last day.
+    package let takesRange: Bool
+    package let publishUntil: String?
 
-    package init(status: ItemStatus, publishDate: String?, suggestedDate: String, contributor: Contributor? = nil) {
+    package init(
+        status: ItemStatus, publishDate: String?, suggestedDate: String, contributor: Contributor? = nil,
+        takesRange: Bool = false, publishUntil: String? = nil
+    ) {
+        self.takesRange = takesRange
+        self.publishUntil = publishUntil
         self.contributor = contributor
         self.status = status
         self.publishDate = publishDate
@@ -34,19 +42,35 @@ struct FilingBox: HTML {
             p(.class("status")) {
                 switch filing.status {
                 case .submitted: "On the news desk. Not in the paper yet."
-                case .filed: "Filed for \(EditorDates.longDay(filing.publishDate ?? ""))."
+                case .filed: "Filed for \(EditorDates.run(from: filing.publishDate ?? "", until: filing.publishUntil))."
                 case .rejected: "Rejected. It will not appear in the paper."
                 }
             }
-            div(.class("field")) {
-                label(.for("publishDate")) { "Publish date" }
-                input(.type(.date), .id("publishDate"), .name("publishDate"),
-                      .value(filing.publishDate ?? filing.suggestedDate))
-                small(.class("hint")) { "It appears in the paper of that day, and not before." }
+            if filing.takesRange {
+                div(.class("field-row")) {
+                    div(.class("field")) {
+                        label(.for("publishDate")) { "First day" }
+                        input(.type(.date), .id("publishDate"), .name("publishDate"),
+                              .value(filing.publishDate ?? filing.suggestedDate))
+                    }
+                    div(.class("field")) {
+                        label(.for("publishUntil")) { "Last day" }
+                        input(.type(.date), .id("publishUntil"), .name("publishUntil"),
+                              .value(filing.publishUntil ?? filing.publishDate ?? filing.suggestedDate))
+                    }
+                }
+                p(.class("hint")) { "It appears in every paper from the first day through the last." }
+            } else {
+                div(.class("field")) {
+                    label(.for("publishDate")) { "Publish date" }
+                    input(.type(.date), .id("publishDate"), .name("publishDate"),
+                          .value(filing.publishDate ?? filing.suggestedDate))
+                    small(.class("hint")) { "It appears in the paper of that day, and not before." }
+                }
             }
             div(.class("actions")) {
                 button(.type(.submit), .class("button primary"), .custom(name: "formaction", value: actionBase + "/file")) {
-                    filing.status == .filed ? "Save and change date" : "Save and file"
+                    filing.status != .filed ? "Save and file" : filing.takesRange ? "Save and change dates" : "Save and change date"
                 }
                 if filing.status != .submitted {
                     button(.type(.submit), .class("button"), .custom(name: "formaction", value: actionBase + "/desk"),

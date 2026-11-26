@@ -31,6 +31,12 @@ package enum EditorDates {
         parseDay(text).map { format($0, "EEEE, MMMM d, yyyy") } ?? text
     }
 
+    /// One day as `longDay`; a longer run as "first day to last day".
+    package static func run(from first: String, until last: String?) -> String {
+        guard let last, last != first else { return longDay(first) }
+        return "\(longDay(first)) to \(longDay(last))"
+    }
+
     /// For the inbox list: "20 Nov 2026, 06:00".
     package static func display(_ date: Date) -> String { format(date, "d MMM yyyy, HH:mm") }
 

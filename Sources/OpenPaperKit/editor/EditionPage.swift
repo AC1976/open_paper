@@ -27,8 +27,12 @@ package struct EditionPage: HTMLDocument {
         style { HTMLRaw(EditorStyles.css) }
     }
 
+    /// Advertisements alone do not make a paper.
+    private var hasPaper: Bool { items.contains { $0.kind != .advertisement } }
+
     private var status: String {
         if items.isEmpty { return "Nothing is filed for this date." }
+        if !hasPaper { return "Only advertisements: readers get no paper for this date." }
         return date > today ? "Scheduled. Readers see it from this date." : "Visible to readers."
     }
 
@@ -59,7 +63,12 @@ package struct EditionPage: HTMLDocument {
                         ul(.class("pick-list")) {
                             for item in items {
                                 li {
-                                    a(.href("/editor/items/\(item.id.uuidString)"), .class("pick-title")) { item.title }
+                                    div(.class("pick-text")) {
+                                        a(.href("/editor/items/\(item.id.uuidString)"), .class("pick-title")) { item.title }
+                                        if let first = item.publishDate, let last = item.publishUntil, last != first {
+                                            small(.class("pick-run")) { "Runs \(EditorDates.run(from: first, until: last))" }
+                                        }
+                                    }
                                     span(.class("pick-kind")) { item.kind.label }
                                 }
                             }
@@ -94,7 +103,7 @@ package struct EditionPage: HTMLDocument {
                 p(.class("status")) { status }
                 div(.class("actions")) {
                     a(.href("/editor/issues/\(date)/preview"), .target(.blank), .class("button")) { "Preview front page" }
-                    if !items.isEmpty && date <= today {
+                    if hasPaper && date <= today {
                         a(.href("/issues/\(date)"), .target(.blank), .class("button quiet")) { "View as a reader" }
                     }
                 }

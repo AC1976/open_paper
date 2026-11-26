@@ -31,18 +31,23 @@ package struct DeskEntry: Sendable, Equatable {
     package let status: ItemStatus
     /// "yyyy-MM-dd"; set exactly when the item is filed.
     package let publishDate: String?
+    /// The last day of a filed advertisement's run, which starts on
+    /// `publishDate`. Nil for everything else: it is in one day's paper.
+    package let publishUntil: String?
 }
 
 package enum SaveError: Error, CustomStringConvertible, Sendable {
     case slugTaken(String)
     case noSuchItem
     case invalidDate(String)
+    case endsBeforeStart
 
     package var description: String {
         switch self {
         case .slugTaken(let slug): "Another story already uses the slug \"\(slug)\"."
         case .noSuchItem: "That item no longer exists."
         case .invalidDate(let text): text.isEmpty ? "Choose a publish date." : "\"\(text)\" is not a valid date."
+        case .endsBeforeStart: "The last day cannot be before the first day."
         }
     }
 }
@@ -248,6 +253,16 @@ package final class PaperDatabase: Sendable {
             try addSizesToStoredImages(db, images)
         }
 
+        migrator.registerMigration("v9-advertisement-ranges") { db in
+            try db.alter(table: "items") { t in
+                t.add(column: "publishUntil", .text)            // "yyyy-MM-dd", advertisements only
+            }
+            // Advertisements filed so far ran for one day, and still do.
+            try db.execute(sql: """
+                UPDATE items SET publishUntil = publishDate WHERE kind = 'advertisement' AND status = 'filed'
+                """)
+        }
+
         return migrator
     }
 
@@ -321,9 +336,15 @@ package final class PaperDatabase: Sendable {
         try entries(where: "i.status = 'filed'", orderBy: "i.publishDate DESC, i.uploadedAt, i.rowid")
     }
 
-    /// The items filed for one date, in the order they came in.
+    /// SQL for "item `i` is in the paper of a date"; takes the date twice.
+    static let inPaperOfDate = """
+        i.status = 'filed' AND i.publishDate <= ? AND COALESCE(i.publishUntil, i.publishDate) >= ?
+        """
+
+    /// The items in the paper of one date, in the order they came in: those
+    /// filed for it, and the advertisements running on it.
     package func filedItems(on date: String) throws -> [DeskEntry] {
-        try entries(where: "i.status = 'filed' AND i.publishDate = ?", orderBy: "i.uploadedAt, i.rowid", arguments: [date])
+        try entries(where: Self.inPaperOfDate, orderBy: "i.uploadedAt, i.rowid", arguments: [date, date])
     }
 
     package func entry(_ id: UUID) throws -> DeskEntry? {
@@ -331,9 +352,19 @@ package final class PaperDatabase: Sendable {
     }
 
     /// Gives the item a publish date ("yyyy-MM-dd"). Filing again moves it.
-    package func file(_ id: UUID, on date: String) throws {
+    /// An advertisement runs from that date through `until`, or for that one
+    /// day without it; `until` means nothing for other kinds.
+    package func file(_ id: UUID, on date: String, until: String? = nil) throws {
+        try Self.checkRun(from: date, until: until)
+        try setStatus(.filed, publishDate: date, publishUntil: until ?? date, of: id)
+    }
+
+    /// Refuses dates that are not real, or a run that ends before it starts.
+    package static func checkRun(from date: String, until: String?) throws {
         guard EditorDates.isDay(date) else { throw SaveError.invalidDate(date) }
-        try setStatus(.filed, publishDate: date, of: id)
+        guard let until else { return }
+        guard EditorDates.isDay(until) else { throw SaveError.invalidDate(until) }
+        guard until >= date else { throw SaveError.endsBeforeStart }
     }
 
     package func reject(_ id: UUID) throws {
@@ -345,11 +376,17 @@ package final class PaperDatabase: Sendable {
         try setStatus(.submitted, publishDate: nil, of: id)
     }
 
-    private func setStatus(_ status: ItemStatus, publishDate: String?, of id: UUID) throws {
+    private func setStatus(
+        _ status: ItemStatus, publishDate: String?, publishUntil: String? = nil, of id: UUID
+    ) throws {
         try queue.write { db in
             try db.execute(
-                sql: "UPDATE items SET status = ?, publishDate = ? WHERE id = ?",
-                arguments: [status.rawValue, publishDate, id.uuidString]
+                sql: """
+                    UPDATE items SET status = ?, publishDate = ?,
+                        publishUntil = CASE WHEN kind = 'advertisement' THEN ? END
+                    WHERE id = ?
+                    """,
+                arguments: [status.rawValue, publishDate, publishUntil, id.uuidString]
             )
             guard db.changesCount > 0 else { throw SaveError.noSuchItem }
         }
@@ -360,7 +397,7 @@ package final class PaperDatabase: Sendable {
     ) throws -> [DeskEntry] {
         try queue.read { db in
             let rows = try Row.fetchAll(db, sql: """
-                SELECT i.id, i.kind, i.uploadedAt, i.status, i.publishDate, s.author,
+                SELECT i.id, i.kind, i.uploadedAt, i.status, i.publishDate, i.publishUntil, s.author,
                        i.contributorName, i.contributorEmail,
                        COALESCE(s.title, a.subject, q.speaker, ad.sponsorName) AS title
                 FROM items i
@@ -382,7 +419,8 @@ package final class PaperDatabase: Sendable {
                 }
                 return DeskEntry(
                     id: id, kind: kind, title: row["title"] ?? "", author: row["author"], contributor: contributor,
-                    uploadedAt: row["uploadedAt"], status: status, publishDate: row["publishDate"]
+                    uploadedAt: row["uploadedAt"], status: status, publishDate: row["publishDate"],
+                    publishUntil: row["publishUntil"]
                 )
             }
         }

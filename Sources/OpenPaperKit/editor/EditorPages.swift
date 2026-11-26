@@ -151,7 +151,13 @@ private struct DeskTable: HTML {
                                 entry.author ?? "—"
                             }
                         }
-                        td { entry.publishDate.map(EditorDates.longDay) ?? EditorDates.display(entry.uploadedAt) }
+                        td {
+                            if let first = entry.publishDate {
+                                EditorDates.run(from: first, until: entry.publishUntil)
+                            } else {
+                                EditorDates.display(entry.uploadedAt)
+                            }
+                        }
                     }
                 }
             }

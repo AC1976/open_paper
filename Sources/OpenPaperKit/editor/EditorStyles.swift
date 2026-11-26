@@ -186,8 +186,10 @@ package enum EditorStyles {
     .pick-list li { display: flex; gap: 0.6rem; align-items: baseline; padding: 0.15rem 0; border-bottom: 1px solid var(--border-light); }
     .pick-list li:last-child { border-bottom: none; }
     .pick-box { flex: none; padding: 0.4rem 0.25rem; cursor: pointer; }
+    .pick-text { flex: 1; min-width: 0; }
+    .pick-run { display: block; font-size: 0.75rem; color: var(--ink-secondary); padding-bottom: 0.4rem; }
     .pick-title {
-        flex: 1; min-width: 0; font-size: 0.9rem; padding: 0.4rem 0;
+        display: block; font-size: 0.9rem; padding: 0.4rem 0;
         color: #1d4f91; text-decoration: underline; text-decoration-color: #b9c9de; text-underline-offset: 3px;
     }
     .pick-title:hover { text-decoration-color: currentColor; }
