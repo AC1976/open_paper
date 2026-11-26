@@ -37,19 +37,15 @@ import Testing
         #expect(try db.body(ofStory: story.id) == "Hello **world**")
     }
 
-    @Test func reuploadWithSameSlugUpdatesInsteadOfDuplicating() throws {
+    @Test func savingNeverTakesOverAnotherStorysSlug() throws {
         let db = try PaperDatabase()
         let first = sampleStory(title: "First")
         try db.save(first, body: "one")
-        let outcome = try db.save(sampleStory(title: "Second"), body: "two")   // new random id, same slug
+        #expect(throws: SaveError.self) { try db.save(sampleStory(title: "Second"), body: "two") }   // new id, same slug
 
-        #expect(outcome == .updated)
         let all = try db.queue.read { try Story.fetchAll($0) }
-        #expect(all.count == 1)
-        #expect(all[0].id == first.id)
-        #expect(all[0].title == "Second")
-        #expect(try db.body(ofStory: first.id) == "two")
-        #expect(try db.newsDesk().count == 1)
+        #expect(all.map(\.title) == ["First"])
+        #expect(try db.body(ofStory: first.id) == "one")
     }
 
     @Test func newsDeskHoldsNewItemsOfEveryKind() throws {

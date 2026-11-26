@@ -93,15 +93,16 @@ struct FormReader {
     mutating func imageSource(keeping existing: ImageSource?) -> ImageSource? {
         if form.text("removeImage") != nil { return nil }
         if let file = form.file("imageFile") {
-            guard let type = file.contentType?.lowercased(), StoryForm.imageTypes.contains(type) else {
-                problems.append("The image must be a JPEG, PNG or WebP file.")
-                return existing
-            }
             guard file.data.count <= StoryForm.maxImageBytes else {
                 problems.append("The image is larger than \(StoryForm.maxImageBytes / 1024 / 1024) MB.")
                 return existing
             }
-            return .blob(data: file.data, mimeType: type)
+            // The bytes decide what it is; location and camera data are removed.
+            guard let image = ImageCleaner.clean(file.data) else {
+                problems.append("The image must be a JPEG, PNG or WebP file.")
+                return existing
+            }
+            return .blob(data: image.data, mimeType: image.mimeType)
         }
         if let url = form.text("image.source.endpoint.url") { return .endpoint(url: url) }
         if case .blob? = existing { return existing }
@@ -119,7 +120,6 @@ struct FormReader {
 package enum StoryForm {
     /// Largest image accepted until image processing (step 4b) exists.
     package static let maxImageBytes = 5 * 1024 * 1024
-    static let imageTypes: Set<String> = ["image/jpeg", "image/png", "image/webp"]
 
     package typealias Problems = FormProblems
 
@@ -218,18 +218,5 @@ package enum ItemForm {
             id: reader.uuid(), sponsorName: sponsor, imageSource: source,
             altText: alt, targetURL: target, priority: priority
         )
-    }
-}
-
-extension PaperDatabase {
-    /// Saves whichever kind of item was parsed, and discards its staged upload.
-    @discardableResult
-    package func save(_ parsed: ParsedUpload, discarding stagedID: UUID?) throws -> SaveOutcome {
-        switch parsed {
-        case .story(let story, let markdown, _): try save(story, body: markdown, discarding: stagedID)
-        case .agendaPoint(let item): try save(item, discarding: stagedID)
-        case .quotedItem(let item): try save(item, discarding: stagedID)
-        case .advertisement(let item): try save(item, discarding: stagedID)
-        }
     }
 }

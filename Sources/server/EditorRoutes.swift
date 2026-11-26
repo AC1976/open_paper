@@ -184,16 +184,23 @@ private struct ItemTarget: Sendable {
 
 /// Validates the submitted fields and saves the item.
 private func save(_ form: MultipartForm, for target: ItemTarget, in database: PaperDatabase) throws {
+    let edited: ParsedUpload
     switch target.original {
     case .story(let original, _, _):
         let (story, body) = try StoryForm.story(from: form, keeping: original)
-        try database.save(story, body: body, discarding: target.stagedID)
+        edited = .story(story, markdown: body, html: "")
     case .agendaPoint:
-        try database.save(try ItemForm.agendaPoint(from: form), discarding: target.stagedID)
+        edited = .agendaPoint(try ItemForm.agendaPoint(from: form))
     case .quotedItem:
-        try database.save(try ItemForm.quotedItem(from: form), discarding: target.stagedID)
+        edited = .quotedItem(try ItemForm.quotedItem(from: form))
     case .advertisement(let original):
-        try database.save(try ItemForm.advertisement(from: form, keeping: original), discarding: target.stagedID)
+        edited = .advertisement(try ItemForm.advertisement(from: form, keeping: original))
+    }
+    // An upload becomes a new item; only an edit page changes an existing one.
+    if let staged = target.stagedID {
+        try database.submit(edited, discarding: staged)
+    } else {
+        try database.update(edited, id: target.original.id)
     }
 }
 

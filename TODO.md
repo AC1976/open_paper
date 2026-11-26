@@ -45,15 +45,25 @@ the items with that date.
   - [ ] Advertisements take a single publish date, like articles. Confirm, or
         give them a date range.
   - [ ] Edits to an item that is already visible go live at once.
-- [ ] **D. Safe to accept strangers.** Required before step E goes public:
-  - a submission always creates a new item (today an upload with an existing
-    `slug` or `id` overwrites that story);
-  - contributors cannot set `id`, `slug`, priority or publish date;
-  - sanitise raw HTML in markdown; require http/https links on upload as well
-    as in forms;
-  - accept only uploaded images (not arbitrary addresses), check their real
-    type, and remove EXIF / GPS data;
-  - rate limits, size limits and a spam trap on the form.
+- [x] **D. Safe to accept strangers.** (`Sources/OpenPaperKit/safety/`)
+  - Every upload creates a new item (`submit`); only an edit page changes one.
+    A taken slug gets a number.
+  - Contributors' `id`, `slug`, priority, dates and story image address are
+    ignored; slugs come from titles.
+  - Article HTML is rebuilt from an allowlist; raw HTML shows as text; links
+    must be http(s)/mailto; images in article text are dropped.
+  - Links are checked on upload as well as in forms; fields have length
+    limits; YAML aliases are refused.
+  - Uploaded photos are recognised by their bytes; location and other metadata
+    are removed (JPEG orientation kept).
+  - Rate limit and hidden spam-trap field are written and tested
+    (`SubmissionGuard`), **to be connected in step E**.
+  - [ ] Connect `SubmissionGuard` to the public form; it needs the sender's
+        address (and the real one, once there is a proxy in front).
+  - [ ] Limit picture dimensions as well as file size.
+  - [ ] Add a Content-Security-Policy header as a second line of defence.
+  - [ ] Pictures stored before this step still carry their metadata.
+  - [ ] Login lockout by network address as well as by email.
 - [ ] **E. Contribute pages.** A public form with live preview, downloadable
       templates and file upload. Author name and email required for all three
       kinds (stored with the item, not only on stories). Required tick box: "I

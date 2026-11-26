@@ -12,7 +12,7 @@ One markdown file per item:
 <markdown body, turned into HTML>
 ```
 
-The YAML is decoded straight into the model, using the same field names as in
+The header uses the same field names as the models in
 `Sources/OpenPaperKit/models/`:
 
 | Folder            | Model           |
@@ -24,14 +24,18 @@ The YAML is decoded straight into the model, using the same field names as in
 
 ## Notes
 
-- `id` can be left out; a new one is created.
-- `priority`: `2` = high, `1` = normal.
+- Every upload becomes a **new** item; it never replaces an existing one.
+- `id`, `slug`, `priority`, `publishedAt`, `updatedAt` and a story's `image` are
+  **ignored**: editors set them (and add the picture) on the review page.
+- Links must start with `http://` or `https://`. HTML in the text is shown as
+  text, and pictures in the text are removed.
+- YAML anchors and aliases (`&`, `*`) are not allowed in the header.
 - `category` (stories): `news`, `background` or `opinion`.
 - Dates: `2026-11-20T06:00:00+01:00`.
-- Images follow `ImageSource`:
+- Advertisements (editors only) name their image like this:
 
   ```yaml
-  source:          # `imageSource:` for advertisements
+  imageSource:
     endpoint:
       url: images/photo.jpg
   ```

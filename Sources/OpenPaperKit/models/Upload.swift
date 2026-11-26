@@ -2,9 +2,10 @@ import Foundation
 import Ink
 import Yams
 
-/// Markdown to HTML, the same conversion uploads use.
+/// Markdown to HTML. Every article body goes through here, and the result is
+/// cleaned: raw HTML a writer typed is shown as text, not run.
 package func markdownToHTML(_ markdown: String) -> String {
-    MarkdownParser().html(from: markdown)
+    HTMLSanitizer.clean(MarkdownParser().html(from: markdown))
 }
 
 /// Reads a markdown upload.
@@ -30,14 +31,13 @@ package func parseUpload<T: Decodable>(_ type: T.Type, text rawText: String, nam
     var yaml = String(text[text.index(text.startIndex, offsetBy: 4)..<end.lowerBound])
     let body = String(text[end.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
 
-    // Every model needs an `id`; give new uploads one so editors don't have to.
+    // Models need an `id`; give files without one a new id.
     if !yaml.split(separator: "\n").contains(where: { $0.hasPrefix("id:") }) {
         yaml = "id: \(UUID().uuidString)\n" + yaml
     }
 
     let item = try YAMLDecoder().decode(T.self, from: yaml)
-    let html = MarkdownParser().html(from: body)
-    return (item, body, html)
+    return (item, body, markdownToHTML(body))
 }
 
 package enum UploadError: Error, CustomStringConvertible {
@@ -57,20 +57,6 @@ package enum ParsedUpload: Sendable {
     case agendaPoint(AgendaPoint)
     case quotedItem(QuotedItem)
     case advertisement(Advertisement)
-
-    package init(kind: ItemKind, text: String, name: String) throws {
-        switch kind {
-        case .story:
-            let upload = try parseUpload(Story.self, text: text, name: name)
-            self = .story(upload.item, markdown: upload.markdown, html: upload.html)
-        case .agendaPoint:
-            self = .agendaPoint(try parseUpload(AgendaPoint.self, text: text, name: name).item)
-        case .quotedItem:
-            self = .quotedItem(try parseUpload(QuotedItem.self, text: text, name: name).item)
-        case .advertisement:
-            self = .advertisement(try parseUpload(Advertisement.self, text: text, name: name).item)
-        }
-    }
 
     package var id: UUID {
         switch self {

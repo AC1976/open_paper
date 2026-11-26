@@ -96,11 +96,11 @@ private let storyFields: [(String, String)] = [
 
     @Test func uploadedImageBecomesABlob() throws {
         let fields = storyFields + [("image.altText", "Alt"), ("image.caption", "Cap")]
-        let body = multipart(fields: fields, files: [("imageFile", "p.png", "image/png", Data([1, 2, 3]))])
+        let body = multipart(fields: fields, files: [("imageFile", "p.png", "image/png", TestImage.png(3))])
         let (story, _) = try StoryForm.story(from: MultipartForm(body: body, boundary: "XyZ"))
 
         guard case .blob(let data, let type)? = story.image?.source else { Issue.record("no blob"); return }
-        #expect(data == Data([1, 2, 3]) && type == "image/png")
+        #expect(data == TestImage.png(3) && type == "image/png")
         #expect(story.image?.altText == "Alt" && story.image?.caption == "Cap")
     }
 
@@ -156,7 +156,7 @@ private let storyFields: [(String, String)] = [
         let staged = try #require(try db.staged(id))
         let parsed = try ParsedUpload(kind: staged.kind, text: staged.source, name: staged.filename)
 
-        try db.save(parsed, discarding: id)
+        try db.submit(parsed, discarding: id)
         #expect(try db.staged(id) == nil)
         #expect(try db.newsDesk().map(\.title) == ["Rate decision"])
     }

@@ -200,15 +200,20 @@ package final class PaperDatabase: Sendable {
 
     // MARK: Saving (new items land on the news desk)
 
-    /// Saves a story and its markdown body. A story with the same `id`, or
-    /// failing that the same `slug`, is updated in place instead of duplicated.
+    /// Saves a story and its markdown body, updating the story with the same
+    /// `id`. A slug that belongs to another story is refused. (New uploads go
+    /// through `submit`, which never changes an existing item.)
     @discardableResult
     package func save(_ story: Story, body: String, discarding stagedID: UUID? = nil) throws -> SaveOutcome {
         try queue.write { db in
-            let id = try Self.existingStoryID(story, in: db) ?? story.id
-            let isNew = try Self.register(id, kind: .story, in: db)
-            try story.with(id: id).save(db)
-            try db.execute(sql: "UPDATE stories SET body = ? WHERE id = ?", arguments: [body, id.uuidString])
+            let clash = try Int.fetchOne(
+                db, sql: "SELECT COUNT(*) FROM stories WHERE slug = ? AND id <> ?",
+                arguments: [story.slug, story.id.uuidString]
+            ) ?? 0
+            guard clash == 0 else { throw SaveError.slugTaken(story.slug) }
+            let isNew = try Self.register(story.id, kind: .story, in: db)
+            try story.save(db)
+            try db.execute(sql: "UPDATE stories SET body = ? WHERE id = ?", arguments: [body, story.id.uuidString])
             try Self.discard(stagedID, in: db)
             return isNew ? .inserted : .updated
         }
@@ -395,7 +400,7 @@ package final class PaperDatabase: Sendable {
         return StagedUpload(id: id, kind: kind, filename: row["filename"], source: row["source"], createdAt: row["createdAt"])
     }
 
-    private static func discard(_ id: UUID?, in db: Database) throws {
+    static func discard(_ id: UUID?, in db: Database) throws {
         guard let id else { return }
         try db.execute(sql: "DELETE FROM staged_uploads WHERE id = ?", arguments: [id.uuidString])
     }
@@ -403,23 +408,12 @@ package final class PaperDatabase: Sendable {
     // MARK: Helpers
 
     /// Adds the item to `items`; false if it was already there.
-    private static func register(_ id: UUID, kind: ItemKind, in db: Database) throws -> Bool {
+    @discardableResult
+    static func register(_ id: UUID, kind: ItemKind, in db: Database) throws -> Bool {
         try db.execute(
             sql: "INSERT OR IGNORE INTO items (id, kind, uploadedAt) VALUES (?, ?, ?)",
             arguments: [id.uuidString, kind.rawValue, Date()]
         )
         return db.changesCount > 0
-    }
-
-    /// The id of the story this one replaces: the same `id`, or failing that the
-    /// same `slug` (a re-upload). Editing a story into another story's slug is an error.
-    private static func existingStoryID(_ story: Story, in db: Database) throws -> UUID? {
-        let byID = try String.fetchOne(db, sql: "SELECT id FROM stories WHERE id = ?", arguments: [story.id.uuidString])
-        let bySlug = try String.fetchOne(db, sql: "SELECT id FROM stories WHERE slug = ?", arguments: [story.slug])
-        if let byID {
-            if let bySlug, bySlug != byID { throw SaveError.slugTaken(story.slug) }
-            return UUID(uuidString: byID)
-        }
-        return bySlug.flatMap(UUID.init(uuidString:))
     }
 }

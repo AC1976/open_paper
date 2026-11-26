@@ -80,10 +80,10 @@ private let storyFields: [(String, String)] = [
         #expect(kept == Data([7]))
 
         let replaced = try ItemForm.advertisement(
-            from: form(base, files: [("imageFile", "n.png", "image/png", Data([5, 5]))]), keeping: existing
+            from: form(base, files: [("imageFile", "n.png", "image/png", TestImage.png(5))]), keeping: existing
         )
         guard case .blob(let new, let type) = replaced.imageSource else { Issue.record("no blob"); return }
-        #expect(new == Data([5, 5]) && type == "image/png")
+        #expect(new == TestImage.png(5) && type == "image/png")
     }
 
     @Test func advertisementWithoutAnyImageIsRejected() throws {
@@ -119,11 +119,11 @@ private let storyFields: [(String, String)] = [
 
     @Test func newFileReplacesTheStoredImage() throws {
         let (edited, _) = try StoryForm.story(
-            from: form(storyFields + [("image.altText", "alt")], files: [("imageFile", "n.jpg", "image/jpeg", Data([9]))]),
+            from: form(storyFields + [("image.altText", "alt")], files: [("imageFile", "n.jpg", "image/jpeg", TestImage.jpeg(9))]),
             keeping: story(image: blobImage)
         )
         guard case .blob(let data, let type)? = edited.image?.source else { Issue.record("no blob"); return }
-        #expect(data == Data([9]) && type == "image/jpeg")
+        #expect(data == TestImage.jpeg(9) && type == "image/jpeg")
     }
 }
 

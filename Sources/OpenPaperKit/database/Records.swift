@@ -32,7 +32,7 @@ extension Advertisement: FetchableRecord, PersistableRecord {
 extension Story {
     /// The same story under another id (used to update an existing story
     /// when a re-upload has the same `slug`).
-    package func with(id: UUID) -> Story {
+    package func with(id: UUID, slug newSlug: String? = nil) -> Story {
         Story(
             id: id,
             category: category,
@@ -40,7 +40,7 @@ extension Story {
             title: title,
             summary: summary,
             extendedSummary: extendedSummary,
-            slug: slug,
+            slug: newSlug ?? slug,
             publishedAt: publishedAt,
             updatedAt: updatedAt,
             author: author,
