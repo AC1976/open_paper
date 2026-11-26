@@ -17,10 +17,16 @@ package struct ArticlePage: HTMLDocument {
     package let story: Story
     /// The article body as HTML (from the markdown).
     package let bodyHTML: String
+    /// The date of the paper it appeared in, "yyyy-MM-dd".
+    package let publishDate: String?
     /// Other stories of the same category, newest first.
     package let related: [Story]
 
-    package init(metadata: EditionMetadata, story: Story, bodyHTML: String, related: [Story] = []) {
+    package init(
+        metadata: EditionMetadata, story: Story, bodyHTML: String,
+        publishDate: String? = nil, related: [Story] = []
+    ) {
+        self.publishDate = publishDate
         self.metadata = metadata
         self.story = story
         self.bodyHTML = bodyHTML
@@ -141,7 +147,7 @@ package struct ArticlePage: HTMLDocument {
         }
     }
 
-    /// Byline, dates and reading time.
+    /// Byline, publish date and reading time.
     @HTMLBuilder
     private var meta_: some HTML {
         div(.class("article-meta")) {
@@ -149,11 +155,8 @@ package struct ArticlePage: HTMLDocument {
                 span(.class("article-author")) { "By \(author)" }
             }
             div(.class("article-dates")) {
-                if let published = story.publishedAt {
-                    span { ArticleText.dateTime(published) }
-                }
-                if let updated = story.updatedAt, updated != story.publishedAt {
-                    span { "Updated \(ArticleText.updatedText(updated, after: story.publishedAt))" }
+                if let publishDate {
+                    span { EditorDates.longDay(publishDate) }
                 }
                 span { "\(ArticleText.readingMinutes(bodyHTML)) min read" }
             }
@@ -230,26 +233,5 @@ package enum ArticleText {
         }
         if result.hasSuffix("-") { result.removeLast() }
         return result
-    }
-
-    private static let timeZone = TimeZone(identifier: "Europe/Amsterdam") ?? .current
-
-    private static func format(_ date: Date, _ pattern: String) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = timeZone
-        formatter.dateFormat = pattern
-        return formatter.string(from: date)
-    }
-
-    /// "November 20, 2026, 6:00 AM"
-    package static func dateTime(_ date: Date) -> String { format(date, "MMMM d, yyyy, h:mm a") }
-
-    /// The time alone when it is the same day as `published`, otherwise the full date.
-    package static func updatedText(_ updated: Date, after published: Date?) -> String {
-        if let published, format(published, "yyyy-MM-dd") == format(updated, "yyyy-MM-dd") {
-            return format(updated, "h:mm a")
-        }
-        return dateTime(updated)
     }
 }

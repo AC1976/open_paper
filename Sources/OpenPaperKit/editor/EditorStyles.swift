@@ -19,6 +19,10 @@ package enum EditorStyles {
         color: #fff;
     }
     .editor-brand { font-weight: 700; letter-spacing: 0.02em; }
+    .review-form fieldset.filing { margin-top: 0.5rem; border-color: #2b6cb0; }
+    .filing .actions { margin-bottom: 0; flex-wrap: wrap; }
+    .editor-main details { margin-top: 2rem; }
+    .editor-main summary { cursor: pointer; font-size: 0.95rem; margin-bottom: 0.6rem; }
     .editor-logout { margin: 0; }
     .editor-logout button { background: none; border: none; padding: 0; font: inherit; font-size: 0.9rem; cursor: pointer; }
     .login { max-width: 420px; margin: 3rem auto; padding: 0 1rem; }

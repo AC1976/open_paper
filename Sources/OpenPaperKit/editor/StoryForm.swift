@@ -21,6 +21,16 @@ package enum EditorDates {
 
     package static func today() -> String { day(Date()) }
 
+    /// True for a real date written exactly as "yyyy-MM-dd".
+    package static func isDay(_ text: String) -> Bool {
+        parseDay(text).map(day) == text
+    }
+
+    /// "Friday, November 20, 2026" for a "yyyy-MM-dd" day.
+    package static func longDay(_ text: String) -> String {
+        parseDay(text).map { format($0, "EEEE, MMMM d, yyyy") } ?? text
+    }
+
     /// For the inbox list: "20 Nov 2026, 06:00".
     package static func display(_ date: Date) -> String { format(date, "d MMM yyyy, HH:mm") }
 
@@ -128,8 +138,10 @@ package enum StoryForm {
         let priority = form.text("priority").flatMap(Int.init).flatMap(StoryPriority.init(rawValue:))
         if priority == nil { reader.problems.append("Choose a priority.") }
 
-        let publishedAt = reader.date("publishedAt", "Published")
-        let updatedAt = reader.date("updatedAt", "Updated")
+        // The review card has no date fields (the publish date is set by filing),
+        // so dates that came with the upload are kept.
+        let publishedAt = form.rawText("publishedAt") == nil ? existing?.publishedAt : reader.date("publishedAt", "Published")
+        let updatedAt = form.rawText("updatedAt") == nil ? existing?.updatedAt : reader.date("updatedAt", "Updated")
 
         var image: StoryImage?
         if let source = reader.imageSource(keeping: existing?.image?.source) {

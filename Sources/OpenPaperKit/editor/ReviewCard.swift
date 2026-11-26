@@ -16,6 +16,8 @@ package struct ReviewCard: HTMLDocument {
     package let heading: String
     /// Where the "back" link in the top bar goes.
     package let backHref: String
+    /// Set for saved items, which can be filed or rejected here.
+    package let filing: Filing?
 
     package init(
         story: Story,
@@ -24,8 +26,10 @@ package struct ReviewCard: HTMLDocument {
         actionBase: String,
         problems: [String] = [],
         heading: String = "Review story",
-        backHref: String = "/editor"
+        backHref: String = "/editor",
+        filing: Filing? = nil
     ) {
+        self.filing = filing
         self.heading = heading
         self.backHref = backHref
         self.story = story
@@ -96,16 +100,6 @@ package struct ReviewCard: HTMLDocument {
                     field("author", "Author") {
                         input(.type(.text), .id("author"), .name("author"), .value(story.author ?? ""))
                     }
-                    div(.class("field-row")) {
-                        field("publishedAt", "Published") {
-                            input(.type(.datetimeLocal), .id("publishedAt"), .name("publishedAt"),
-                                  .value(story.publishedAt.map(EditorDates.dateTime) ?? ""))
-                        }
-                        field("updatedAt", "Updated") {
-                            input(.type(.datetimeLocal), .id("updatedAt"), .name("updatedAt"),
-                                  .value(story.updatedAt.map(EditorDates.dateTime) ?? ""))
-                        }
-                    }
                     field("summary", "Summary") {
                         textarea(.id("summary"), .name("summary"), .rows(4), .required) { story.summary }
                     }
@@ -165,6 +159,10 @@ package struct ReviewCard: HTMLDocument {
                            .custom(name: "formnovalidate", value: "")) {
                         "Cancel"
                     }
+                }
+
+                if let filing {
+                    FilingBox(filing: filing, actionBase: actionBase)
                 }
             }
 

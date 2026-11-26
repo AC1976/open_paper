@@ -11,14 +11,18 @@ package struct ItemEditPage: HTMLDocument {
     package let heading: String
     package let backHref: String
     package let problems: [String]
+    /// Set for saved items, which can be filed or rejected here.
+    package let filing: Filing?
 
     package init(
         parsed: ParsedUpload,
         actionBase: String,
         heading: String,
         backHref: String = "/editor",
-        problems: [String] = []
+        problems: [String] = [],
+        filing: Filing? = nil
     ) {
+        self.filing = filing
         self.parsed = parsed
         self.actionBase = actionBase
         self.heading = heading
@@ -73,6 +77,10 @@ package struct ItemEditPage: HTMLDocument {
                            .custom(name: "formnovalidate", value: "")) {
                         "Cancel"
                     }
+                }
+
+                if let filing {
+                    FilingBox(filing: filing, actionBase: actionBase)
                 }
             }
         }

@@ -10,20 +10,36 @@ package enum SaveOutcome: Sendable, Equatable {
     case inserted, updated
 }
 
-/// An uploaded item that has not been placed in any issue yet.
-package struct InboxEntry: Sendable, Equatable {
+/// Where an item is on its way into the paper.
+package enum ItemStatus: String, Sendable {
+    case submitted   // on the news desk
+    case filed       // has a publish date
+    case rejected
+}
+
+/// One line on the news desk or in an edition.
+package struct DeskEntry: Sendable, Equatable {
     package let id: UUID
     package let kind: ItemKind
     package let title: String
+    /// Only stories carry an author so far.
+    package let author: String?
     package let uploadedAt: Date
+    package let status: ItemStatus
+    /// "yyyy-MM-dd"; set exactly when the item is filed.
+    package let publishDate: String?
 }
 
 package enum SaveError: Error, CustomStringConvertible, Sendable {
     case slugTaken(String)
+    case noSuchItem
+    case invalidDate(String)
 
     package var description: String {
         switch self {
         case .slugTaken(let slug): "Another story already uses the slug \"\(slug)\"."
+        case .noSuchItem: "That item no longer exists."
+        case .invalidDate(let text): text.isEmpty ? "Choose a publish date." : "\"\(text)\" is not a valid date."
         }
     }
 }
@@ -39,10 +55,10 @@ package struct StagedUpload: Sendable, Equatable {
 
 /// The SQLite database.
 ///
-/// Workflow: an editor uploads one item at a time. `save` stores it in the
-/// inbox (a row in `items` plus a row in the item's own table). Later the
-/// editor places inbox items into an issue with `place`, which adds a row to
-/// `edition_items`. Each `save` / `place` is one transaction.
+/// Workflow: `save` puts an item on the news desk (a row in `items` plus a row
+/// in the item's own table). An editor files it with a publish date (`file`);
+/// the paper of a date is made of the items filed for it. Each `save` / `file`
+/// is one transaction.
 package final class PaperDatabase: Sendable {
     package let queue: DatabaseQueue
 
@@ -60,7 +76,7 @@ package final class PaperDatabase: Sendable {
     //
     // Never edit a migration that has shipped; add a new one.
 
-    private static var migrator: DatabaseMigrator {
+    static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
         migrator.registerMigration("v1") { db in
@@ -157,10 +173,32 @@ package final class PaperDatabase: Sendable {
             }
         }
 
+        migrator.registerMigration("v5-publish-dates") { db in
+            try db.alter(table: "items") { t in
+                t.add(column: "status", .text).notNull().defaults(to: "submitted")
+                t.add(column: "publishDate", .text)             // "yyyy-MM-dd"
+            }
+            try db.create(index: "items_on_status_publishDate", on: "items", columns: ["status", "publishDate"])
+
+            // Items that readers could already see are filed, dated with the first
+            // published issue they were in. Everything else waits on the news desk.
+            // `edition_items` and `issues.publishedAt` are no longer used, but are
+            // kept so that nothing is lost.
+            let firstPublished = """
+                SELECT MIN(e.issueDate) FROM edition_items e
+                JOIN issues i ON i.issueDate = e.issueDate
+                WHERE e.itemId = items.id AND i.publishedAt IS NOT NULL
+                """
+            try db.execute(sql: """
+                UPDATE items SET status = 'filed', publishDate = (\(firstPublished))
+                WHERE (\(firstPublished)) IS NOT NULL
+                """)
+        }
+
         return migrator
     }
 
-    // MARK: Saving uploads (into the inbox)
+    // MARK: Saving (new items land on the news desk)
 
     /// Saves a story and its markdown body. A story with the same `id`, or
     /// failing that the same `slug`, is updated in place instead of duplicated.
@@ -206,67 +244,81 @@ package final class PaperDatabase: Sendable {
         }
     }
 
-    // MARK: Inbox and placement
+    // MARK: News desk and filing
 
-    /// Items that are not in any issue yet, newest upload first.
-    package func inbox() throws -> [InboxEntry] {
-        try queue.read { db in
-            try Self.entries(db, where: "NOT EXISTS (SELECT 1 FROM edition_items e WHERE e.itemId = i.id)",
-                             orderBy: "i.uploadedAt DESC, i.rowid DESC")
-        }
+    /// Submissions waiting for an editor, newest first.
+    package func newsDesk() throws -> [DeskEntry] {
+        try entries(where: "i.status = 'submitted'", orderBy: "i.uploadedAt DESC, i.rowid DESC")
     }
 
-    /// Items placed in the issue of `issueDate`, in their order.
-    package func placed(inIssue issueDate: String) throws -> [InboxEntry] {
-        try queue.read { db in
-            try Self.entries(db, where: "i.id IN (SELECT itemId FROM edition_items WHERE issueDate = ?)",
-                             orderBy: "(SELECT position FROM edition_items WHERE itemId = i.id AND issueDate = ?), i.rowid",
-                             arguments: [issueDate, issueDate])
-        }
+    package func rejectedItems() throws -> [DeskEntry] {
+        try entries(where: "i.status = 'rejected'", orderBy: "i.uploadedAt DESC, i.rowid DESC")
     }
 
-    /// Places an item in the issue of `issueDate` ("yyyy-MM-dd"), after the
-    /// items already there. Placing it again leaves its position alone unless
-    /// you pass one.
-    package func place(_ itemID: UUID, inIssue issueDate: String, position: Int? = nil) throws {
-        try queue.write { db in
-            try db.execute(sql: """
-                INSERT INTO edition_items (issueDate, itemId, position)
-                VALUES (?, ?, COALESCE(?, (SELECT MAX(position) + 1 FROM edition_items WHERE issueDate = ?), 0))
-                ON CONFLICT(issueDate, itemId) DO UPDATE SET position = COALESCE(?, position)
-                """, arguments: [issueDate, itemID.uuidString, position, issueDate, position])
-        }
+    /// Every filed item, latest publish date first.
+    package func filedItems() throws -> [DeskEntry] {
+        try entries(where: "i.status = 'filed'", orderBy: "i.publishDate DESC, i.uploadedAt, i.rowid")
     }
 
-    /// Takes an item out of an issue; it goes back to the inbox if it is in no other issue.
-    package func remove(_ itemID: UUID, fromIssue issueDate: String) throws {
+    /// The items filed for one date, in the order they came in.
+    package func filedItems(on date: String) throws -> [DeskEntry] {
+        try entries(where: "i.status = 'filed' AND i.publishDate = ?", orderBy: "i.uploadedAt, i.rowid", arguments: [date])
+    }
+
+    package func entry(_ id: UUID) throws -> DeskEntry? {
+        try entries(where: "i.id = ?", orderBy: "i.rowid", arguments: [id.uuidString]).first
+    }
+
+    /// Gives the item a publish date ("yyyy-MM-dd"). Filing again moves it.
+    package func file(_ id: UUID, on date: String) throws {
+        guard EditorDates.isDay(date) else { throw SaveError.invalidDate(date) }
+        try setStatus(.filed, publishDate: date, of: id)
+    }
+
+    package func reject(_ id: UUID) throws {
+        try setStatus(.rejected, publishDate: nil, of: id)
+    }
+
+    /// Takes a filed or rejected item back to the news desk.
+    package func returnToDesk(_ id: UUID) throws {
+        try setStatus(.submitted, publishDate: nil, of: id)
+    }
+
+    private func setStatus(_ status: ItemStatus, publishDate: String?, of id: UUID) throws {
         try queue.write { db in
             try db.execute(
-                sql: "DELETE FROM edition_items WHERE issueDate = ? AND itemId = ?",
-                arguments: [issueDate, itemID.uuidString]
+                sql: "UPDATE items SET status = ?, publishDate = ? WHERE id = ?",
+                arguments: [status.rawValue, publishDate, id.uuidString]
             )
+            guard db.changesCount > 0 else { throw SaveError.noSuchItem }
         }
     }
 
-    private static func entries(
-        _ db: Database, where condition: String, orderBy: String, arguments: StatementArguments = []
-    ) throws -> [InboxEntry] {
-        let rows = try Row.fetchAll(db, sql: """
-            SELECT i.id, i.kind, i.uploadedAt,
-                   COALESCE(s.title, a.subject, q.speaker, ad.sponsorName) AS title
-            FROM items i
-            LEFT JOIN stories s ON s.id = i.id
-            LEFT JOIN agenda_points a ON a.id = i.id
-            LEFT JOIN quoted_items q ON q.id = i.id
-            LEFT JOIN advertisements ad ON ad.id = i.id
-            WHERE \(condition)
-            ORDER BY \(orderBy)
-            """, arguments: arguments)
-        return rows.compactMap { row in
-            guard let id = UUID(uuidString: row["id"]),
-                  let kind = ItemKind(rawValue: row["kind"])
-            else { return nil }
-            return InboxEntry(id: id, kind: kind, title: row["title"] ?? "", uploadedAt: row["uploadedAt"])
+    private func entries(
+        where condition: String, orderBy: String, arguments: StatementArguments = []
+    ) throws -> [DeskEntry] {
+        try queue.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT i.id, i.kind, i.uploadedAt, i.status, i.publishDate, s.author,
+                       COALESCE(s.title, a.subject, q.speaker, ad.sponsorName) AS title
+                FROM items i
+                LEFT JOIN stories s ON s.id = i.id
+                LEFT JOIN agenda_points a ON a.id = i.id
+                LEFT JOIN quoted_items q ON q.id = i.id
+                LEFT JOIN advertisements ad ON ad.id = i.id
+                WHERE \(condition)
+                ORDER BY \(orderBy)
+                """, arguments: arguments)
+            return rows.compactMap { row in
+                guard let id = UUID(uuidString: row["id"]),
+                      let kind = ItemKind(rawValue: row["kind"]),
+                      let status = ItemStatus(rawValue: row["status"])
+                else { return nil }
+                return DeskEntry(
+                    id: id, kind: kind, title: row["title"] ?? "", author: row["author"],
+                    uploadedAt: row["uploadedAt"], status: status, publishDate: row["publishDate"]
+                )
+            }
         }
     }
 

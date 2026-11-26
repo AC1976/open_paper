@@ -158,7 +158,7 @@ private let storyFields: [(String, String)] = [
 
         try db.save(parsed, discarding: id)
         #expect(try db.staged(id) == nil)
-        #expect(try db.inbox().map(\.title) == ["Rate decision"])
+        #expect(try db.newsDesk().map(\.title) == ["Rate decision"])
     }
 
     @Test func cancelRemovesTheStagedUpload() throws {
@@ -166,7 +166,7 @@ private let storyFields: [(String, String)] = [
         let id = try db.stage(kind: .agendaPoint, filename: "ecb.md", source: source)
         try db.discardStaged(id)
         #expect(try db.staged(id) == nil)
-        #expect(try db.inbox().isEmpty)
+        #expect(try db.newsDesk().isEmpty)
     }
 
     @Test func oldStagedUploadsAreRemovedWhenStagingAgain() throws {

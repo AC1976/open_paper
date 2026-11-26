@@ -1,53 +1,68 @@
 import Foundation
+import GRDB
 import Testing
 @testable import OpenPaperKit
 
+private func story(_ slug: String, priority: StoryPriority = .normal) -> Story {
+    Story(
+        category: .news, priority: priority, title: slug.capitalized, summary: "s", slug: slug,
+        image: StoryImage(source: .blob(data: Data([9, 8]), mimeType: "image/png"), altText: "a", caption: nil, credit: nil)
+    )
+}
+
+@Suite struct FilingTests {
+    @Test func itemsMoveBetweenDeskFiledAndRejected() throws {
+        let db = try PaperDatabase()
+        let a = story("alpha")
+        try db.save(a, body: "")
+        #expect(try db.entry(a.id)?.status == .submitted)
+
+        try db.file(a.id, on: "2026-11-20")
+        #expect(try db.newsDesk().isEmpty)
+        #expect(try db.filedItems().map(\.publishDate) == ["2026-11-20"])
+
+        try db.file(a.id, on: "2026-11-22")                    // filing again moves it
+        #expect(try db.filedItems(on: "2026-11-20").isEmpty)
+        #expect(try db.filedItems(on: "2026-11-22").count == 1)
+
+        try db.reject(a.id)
+        #expect(try db.rejectedItems().count == 1 && db.entry(a.id)?.publishDate == nil)
+        #expect(try db.filedItems().isEmpty)
+
+        try db.returnToDesk(a.id)
+        #expect(try db.newsDesk().map(\.title) == ["Alpha"])
+    }
+
+    @Test func savingAFiledItemKeepsItsDate() throws {
+        let db = try PaperDatabase()
+        let a = story("alpha")
+        try db.save(a, body: "old")
+        try db.file(a.id, on: "2026-11-20")
+        try db.save(a, body: "new")
+        #expect(try db.entry(a.id)?.publishDate == "2026-11-20")
+    }
+
+    @Test func deskShowsTheStoryAuthor() throws {
+        let db = try PaperDatabase()
+        let s = Story(category: .news, priority: .normal, title: "T", summary: "s", slug: "t", author: "Jane")
+        try db.save(s, body: "")
+        #expect(try db.newsDesk().first?.author == "Jane")
+    }
+
+    @Test func badDatesAndUnknownItemsAreRefused() throws {
+        let db = try PaperDatabase()
+        let a = story("alpha")
+        try db.save(a, body: "")
+        for bad in ["", "tomorrow", "2026-13-01", "2026-1-5", "2026-11-20x"] {
+            #expect(throws: SaveError.self, "\(bad)") { try db.file(a.id, on: bad) }
+        }
+        #expect(throws: SaveError.self) { try db.file(UUID(), on: "2026-11-20") }
+        #expect(try db.entry(a.id)?.status == .submitted)
+    }
+}
+
 @Suite struct IssueTests {
-    private func story(_ slug: String, priority: StoryPriority = .normal, category: StoryCategory = .news) -> Story {
-        Story(
-            category: category, priority: priority, title: slug.capitalized, summary: "s", slug: slug,
-            image: StoryImage(source: .blob(data: Data([9, 8]), mimeType: "image/png"), altText: "a", caption: nil, credit: nil)
-        )
-    }
-
-    @Test func positionsFollowTheOrderItemsWerePlaced() throws {
-        let db = try PaperDatabase()
-        let a = story("alpha"), b = story("bravo"), c = story("charlie")
-        for s in [a, b, c] { try db.save(s, body: "") }
-
-        try db.place(c.id, inIssue: "2026-11-20")
-        try db.place(a.id, inIssue: "2026-11-20")
-        try db.place(b.id, inIssue: "2026-11-20")
-        try db.place(c.id, inIssue: "2026-11-20")   // again: keeps its position
-
-        #expect(try db.placed(inIssue: "2026-11-20").map(\.title) == ["Charlie", "Alpha", "Bravo"])
-        #expect(try db.issue(on: "2026-11-20").stories.map(\.slug) == ["charlie", "alpha", "bravo"])
-    }
-
-    @Test func removingAnItemSendsItBackToTheInbox() throws {
-        let db = try PaperDatabase()
-        let a = story("alpha")
-        try db.save(a, body: "")
-        try db.place(a.id, inIssue: "2026-11-20")
-        #expect(try db.inbox().isEmpty)
-
-        try db.remove(a.id, fromIssue: "2026-11-20")
-        #expect(try db.inbox().map(\.title) == ["Alpha"])
-        #expect(try db.placed(inIssue: "2026-11-20").isEmpty)
-    }
-
-    @Test func itemStaysOutOfTheInboxWhileInAnyIssue() throws {
-        let db = try PaperDatabase()
-        let a = story("alpha")
-        try db.save(a, body: "")
-        try db.place(a.id, inIssue: "2026-11-20")
-        try db.place(a.id, inIssue: "2026-11-21")
-        try db.remove(a.id, fromIssue: "2026-11-20")
-        #expect(try db.inbox().isEmpty)
-        #expect(try db.placed(inIssue: "2026-11-21").count == 1)
-    }
-
-    @Test func issueLoadsEveryKindFromTheDatabase() throws {
+    @Test func aDatesPaperHoldsOnlyThatDatesItems() throws {
         let db = try PaperDatabase()
         let s = story("alpha", priority: .high)
         let agenda = AgendaPoint(subject: "ECB", place: "Frankfurt", link: "https://x", summary: "s",
@@ -55,55 +70,63 @@ import Testing
         let quote = QuotedItem(quote: "q", speaker: "Lindeman", context: "c", sourceLink: "https://x")
         let ad = Advertisement(sponsorName: "Vacheron", imageSource: .endpoint(url: "/a.webp"), altText: "a",
                                targetURL: "https://x", priority: .high)
-        let notPlaced = story("other")
-
-        try db.save(s, body: "body")
-        try db.save(agenda); try db.save(quote); try db.save(ad); try db.save(notPlaced, body: "")
-        for id in [s.id, agenda.id, quote.id, ad.id] { try db.place(id, inIssue: "2026-11-20") }
+        let yesterday = story("yesterday"), waiting = story("waiting")
+        try db.save(s, body: "body"); try db.save(agenda); try db.save(quote); try db.save(ad)
+        try db.save(yesterday, body: ""); try db.save(waiting, body: "")
+        for id in [s.id, agenda.id, quote.id, ad.id] { try db.file(id, on: "2026-11-20") }
+        try db.file(yesterday.id, on: "2026-11-19")
 
         let issue = try db.issue(on: "2026-11-20")
         #expect(issue.stories.map(\.id) == [s.id])
-        #expect(issue.stories.first?.priority == .high)
         guard case .blob(let data, _)? = issue.stories.first?.image?.source else { Issue.record("image lost"); return }
         #expect(data == Data([9, 8]))
-        #expect(issue.agendaPoints.first?.subject == "ECB")
         #expect(issue.agendaPoints.first?.eventDate == agenda.eventDate)
         #expect(issue.quotedItems.first?.speaker == "Lindeman")
         #expect(issue.advertisements.first?.priority == .high)
-        #expect(!issue.isEmpty)
+        #expect(issue.number == 2)
 
-        // The loaded issue goes straight into the page.
         let html = NYTFrontPage(metadata: issue.metadata, plan: issue.plan).render()
         #expect(html.contains("Alpha") && html.contains("Lindeman") && html.contains("ECB"))
-        #expect(!html.contains("Other"))
+        #expect(!html.contains("Yesterday") && !html.contains("Waiting"))
+    }
+
+    @Test func theFrontPageIsTheLatestDateThatHasArrived() throws {
+        let db = try PaperDatabase()
+        #expect(try db.latestIssueDate(asOf: "2026-11-20") == nil)
+        let a = story("alpha"), b = story("bravo")
+        try db.save(a, body: ""); try db.save(b, body: "")
+        try db.file(a.id, on: "2026-11-18")
+        try db.file(b.id, on: "2026-11-23")
+
+        #expect(try db.latestIssueDate(asOf: "2026-11-17") == nil)
+        #expect(try db.latestIssueDate(asOf: "2026-11-20") == "2026-11-18")   // quiet days show the last paper
+        #expect(try db.latestIssueDate(asOf: "2026-11-23") == "2026-11-23")   // future items appear on their day
+    }
+
+    @Test func layoutIsSetPerDate() throws {
+        let db = try PaperDatabase()
+        let a = story("lead", priority: .high)
+        try db.save(a, body: "")
+        try db.file(a.id, on: "2026-11-20")
+        #expect(try db.issue(on: "2026-11-20").mode == .prominent)
+
+        try db.setMode(.breaking, forIssue: "2026-11-20")
+        #expect(try db.issue(on: "2026-11-20").plan.breakingBanner?.columnSpan == 4)
+        try db.setMode(.regular, forIssue: "2026-11-20")
+        #expect(try db.issue(on: "2026-11-20").plan.editorialStories.first?.columnSpan == 1)
+        #expect(try db.mode(ofIssue: "2026-11-21") == .prominent)
     }
 
     @Test func emptyIssueStillRenders() throws {
-        let db = try PaperDatabase()
-        let issue = try db.issue(on: "2026-11-20")
+        let issue = try PaperDatabase().issue(on: "2026-11-20")
         #expect(issue.isEmpty)
         #expect(NYTFrontPage(metadata: issue.metadata, plan: issue.plan).render().contains("Het Grootboek"))
     }
 
-    @Test func issueNumbersCountIssueDates() throws {
-        let db = try PaperDatabase()
-        let a = story("alpha")
-        try db.save(a, body: "")
-        try db.place(a.id, inIssue: "2026-11-21")
-        try db.place(a.id, inIssue: "2026-11-20")
-        try db.place(a.id, inIssue: "2026-11-25")
-
-        #expect(try db.issue(on: "2026-11-20").number == 1)
-        #expect(try db.issue(on: "2026-11-21").number == 2)
-        #expect(try db.issue(on: "2026-11-25").number == 3)
-    }
-
     @Test func dayParsingAcceptsOnlyRealDates() {
-        #expect(EditorDates.parseDay("2026-11-20") != nil)
-        #expect(EditorDates.parseDay("2026-13-45") == nil)
-        #expect(EditorDates.parseDay("tomorrow") == nil)
-        #expect(EditorDates.parseDay("../etc") == nil)
-        #expect(EditorDates.day(EditorDates.parseDay("2026-11-20")!) == "2026-11-20")
+        #expect(EditorDates.isDay("2026-11-20"))
+        for bad in ["2026-13-45", "tomorrow", "../etc", "2026-1-2"] { #expect(!EditorDates.isDay(bad), "\(bad)") }
+        #expect(EditorDates.longDay("2026-11-20") == "Friday, November 20, 2026")
     }
 
     @Test func multipartReturnsEveryCheckedBox() throws {
@@ -116,74 +139,33 @@ import Testing
         #expect(form.values("item") == ["one", "two"])
         #expect(form.values("nothing").isEmpty)
     }
+}
 
-    // MARK: Edition mode and publishing
+@Suite struct PublishDateMigrationTests {
+    @Test func publishedItemsAreFiledWithTheirFirstPublishedDate() throws {
+        let queue = try DatabaseQueue()
+        try PaperDatabase.migrator.migrate(queue, upTo: "v4-editors")
+        try queue.write { db in
+            for id in ["live", "draft", "loose"] {
+                try db.execute(sql: "INSERT INTO items (id, kind, uploadedAt) VALUES (?, 'story', ?)", arguments: [id, Date()])
+            }
+            try db.execute(sql: """
+                INSERT INTO issues (issueDate, publishedAt) VALUES ('2026-11-18', NULL), ('2026-11-19', '2026-11-19'),
+                    ('2026-11-21', '2026-11-21');
+                INSERT INTO edition_items (issueDate, itemId) VALUES
+                    ('2026-11-18', 'live'), ('2026-11-21', 'live'), ('2026-11-19', 'live'), ('2026-11-18', 'draft');
+                """)
+        }
 
-    @Test func newIssueIsADraftWithProminentLayout() throws {
-        let db = try PaperDatabase()
-        let issue = try db.issue(on: "2026-11-20")
-        #expect(issue.mode == .prominent)
-        #expect(!issue.isPublished)
-        #expect(try db.latestPublishedIssueDate() == nil)
-    }
+        try PaperDatabase.migrator.migrate(queue)
 
-    @Test func modeIsSavedPerIssueAndShapesTheFrontPage() throws {
-        let db = try PaperDatabase()
-        let lead = story("lead", priority: .high)
-        try db.save(lead, body: "")
-        try db.place(lead.id, inIssue: "2026-11-20")
-        try db.place(lead.id, inIssue: "2026-11-21")
-
-        try db.setMode(.breaking, forIssue: "2026-11-20")
-        #expect(try db.issue(on: "2026-11-20").mode == .breaking)
-        #expect(try db.issue(on: "2026-11-21").mode == .prominent)   // other issues are not affected
-
-        // Breaking puts the lead in the banner across all columns; the others keep it in the grid.
-        #expect(try db.issue(on: "2026-11-20").plan.breakingBanner?.columnSpan == 4)
-        let regular = try { try db.setMode(.regular, forIssue: "2026-11-20"); return try db.issue(on: "2026-11-20").plan }()
-        #expect(regular.breakingBanner == nil)
-        #expect(regular.editorialStories.first?.columnSpan == 1)
-        #expect(try db.issue(on: "2026-11-21").plan.editorialStories.first?.columnSpan == 2)
-    }
-
-    @Test func publishNeedsAtLeastOneItem() throws {
-        let db = try PaperDatabase()
-        #expect(try db.publish(issue: "2026-11-20", mode: .prominent) == false)
-        #expect(try db.latestPublishedIssueDate() == nil)
-    }
-
-    @Test func publishingMakesTheIssueTheFrontPage() throws {
-        let db = try PaperDatabase()
-        let a = story("alpha")
-        try db.save(a, body: "")
-        try db.place(a.id, inIssue: "2026-11-20")
-        try db.place(a.id, inIssue: "2026-11-21")
-
-        #expect(try db.publish(issue: "2026-11-20", mode: .breaking))
-        #expect(try db.latestPublishedIssueDate() == "2026-11-20")
-        let published = try db.issue(on: "2026-11-20")
-        #expect(published.isPublished && published.mode == .breaking)
-        #expect(try db.issue(on: "2026-11-21").isPublished == false)   // still a draft
-
-        // The most recent publication wins, whatever its date.
-        Thread.sleep(forTimeInterval: 0.01)
-        #expect(try db.publish(issue: "2026-11-21", mode: .regular))
-        #expect(try db.latestPublishedIssueDate() == "2026-11-21")
-        Thread.sleep(forTimeInterval: 0.01)
-        #expect(try db.publish(issue: "2026-11-20", mode: .breaking))   // publishing again brings it back
-        #expect(try db.latestPublishedIssueDate() == "2026-11-20")
-    }
-
-    @Test func settingTheModeDoesNotPublishOrUnpublish() throws {
-        let db = try PaperDatabase()
-        let a = story("alpha")
-        try db.save(a, body: "")
-        try db.place(a.id, inIssue: "2026-11-20")
-        try db.setMode(.regular, forIssue: "2026-11-20")
-        #expect(try db.latestPublishedIssueDate() == nil)
-
-        try db.publish(issue: "2026-11-20", mode: .regular)
-        try db.setMode(.breaking, forIssue: "2026-11-20")
-        #expect(try db.issue(on: "2026-11-20").isPublished)
+        let rows = try queue.read { db in
+            try Row.fetchAll(db, sql: "SELECT id, status, publishDate FROM items ORDER BY id")
+                .map { "\($0["id"] as String) \($0["status"] as String) \($0["publishDate"] as String? ?? "-")" }
+        }
+        // The 18th was never published, so the first *published* date is the 19th.
+        #expect(rows == ["draft submitted -", "live filed 2026-11-19", "loose submitted -"])
+        // Nothing is thrown away.
+        #expect(try queue.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM edition_items") } == 4)
     }
 }

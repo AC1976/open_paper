@@ -1,8 +1,8 @@
 import Foundation
 import GRDB
 
-/// Everything that has appeared in a published issue, newest first. This is
-/// what the section pages (News, Background, Opinion, Agenda, Quoted) show.
+/// Everything readers can see, newest first. This is what the section pages
+/// (News, Background, Opinion, Agenda, Quoted) show.
 package struct PublishedItems: Sendable {
     package let stories: [Story]
     package let agendaPoints: [AgendaPoint]
@@ -10,52 +10,39 @@ package struct PublishedItems: Sendable {
 }
 
 extension PaperDatabase {
-    /// Items placed in at least one published issue, newest first.
-    ///
-    /// "Newest" means the item's own date when it has one (a story's
-    /// `publishedAt`, an agenda point's `eventDate`) and otherwise the date of
-    /// the newest published issue it appears in. Quotes have no date of their
-    /// own, so they follow their issue. Drafts and the inbox never show up.
-    package func publishedItems() throws -> PublishedItems {
+    /// Items filed for today or earlier, newest first: stories and quotes by
+    /// publish date, agenda points by event date (publish date if they have none).
+    package func publishedItems(asOf today: String = EditorDates.today()) throws -> PublishedItems {
         try queue.read { db in
-            func load<T: FetchableRecord & TableRecord>(_ type: T.Type, ownDate: String) throws -> [T] {
+            func load<T: FetchableRecord & TableRecord>(_ type: T.Type, orderBy: String) throws -> [T] {
                 try T.fetchAll(db, sql: """
                     SELECT t.* FROM \(T.databaseTableName) t
-                    JOIN (
-                        SELECT e.itemId, MAX(e.issueDate) AS issueDate
-                        FROM edition_items e
-                        JOIN issues i ON i.issueDate = e.issueDate
-                        WHERE i.publishedAt IS NOT NULL
-                        GROUP BY e.itemId
-                    ) p ON p.itemId = t.id
-                    ORDER BY COALESCE(\(ownDate), p.issueDate) DESC, p.issueDate DESC, t.rowid DESC
-                    """)
+                    JOIN items i ON i.id = t.id
+                    WHERE i.status = 'filed' AND i.publishDate <= ?
+                    ORDER BY \(orderBy), i.uploadedAt DESC, i.rowid DESC
+                    """, arguments: [today])
             }
             return PublishedItems(
-                stories: try load(Story.self, ownDate: "t.publishedAt"),
-                agendaPoints: try load(AgendaPoint.self, ownDate: "t.eventDate"),
-                quotedItems: try load(QuotedItem.self, ownDate: "NULL")
+                stories: try load(Story.self, orderBy: "i.publishDate DESC"),
+                agendaPoints: try load(AgendaPoint.self, orderBy: "COALESCE(t.eventDate, i.publishDate) DESC"),
+                quotedItems: try load(QuotedItem.self, orderBy: "i.publishDate DESC")
             )
         }
     }
 
-    /// A story that has appeared in at least one published issue, with its
-    /// markdown body. Nil for unknown slugs, drafts and inbox items, so a
-    /// story cannot be read before it is published.
-    package func publishedStory(slug: String) throws -> (story: Story, markdown: String)? {
+    /// A story readers may open, with its markdown body and publish date. Nil
+    /// for unknown slugs and for anything not filed for today or earlier.
+    package func publishedStory(
+        slug: String, asOf today: String = EditorDates.today()
+    ) throws -> (story: Story, markdown: String, publishDate: String)? {
         try queue.read { db in
-            guard let story = try Story.fetchOne(db, sql: """
-                SELECT s.* FROM stories s
-                WHERE s.slug = ?
-                  AND EXISTS (
-                    SELECT 1 FROM edition_items e
-                    JOIN issues i ON i.issueDate = e.issueDate
-                    WHERE e.itemId = s.id AND i.publishedAt IS NOT NULL
-                  )
-                """, arguments: [slug])
+            guard let row = try Row.fetchOne(db, sql: """
+                SELECT s.*, i.publishDate AS filedFor FROM stories s
+                JOIN items i ON i.id = s.id
+                WHERE s.slug = ? AND i.status = 'filed' AND i.publishDate <= ?
+                """, arguments: [slug, today])
             else { return nil }
-            let body = try String.fetchOne(db, sql: "SELECT body FROM stories WHERE id = ?", arguments: [story.id.uuidString]) ?? ""
-            return (story, body)
+            return (try Story(row: row), row["body"] ?? "", row["filedFor"])
         }
     }
 }

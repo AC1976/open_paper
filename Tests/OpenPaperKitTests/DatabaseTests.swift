@@ -49,10 +49,10 @@ import Testing
         #expect(all[0].id == first.id)
         #expect(all[0].title == "Second")
         #expect(try db.body(ofStory: first.id) == "two")
-        #expect(try db.inbox().count == 1)
+        #expect(try db.newsDesk().count == 1)
     }
 
-    @Test func inboxHoldsUnplacedItemsOfEveryKind() throws {
+    @Test func newsDeskHoldsNewItemsOfEveryKind() throws {
         let db = try PaperDatabase()
         let story = sampleStory()
         try db.save(story, body: "")
@@ -60,21 +60,20 @@ import Testing
         try db.save(QuotedItem(quote: "q", speaker: "Lindeman", context: "c", sourceLink: "https://x"))
         try db.save(Advertisement(sponsorName: "Vacheron", imageSource: .endpoint(url: "/a.webp"), altText: "a", targetURL: "https://x"))
 
-        let inbox = try db.inbox()
+        let inbox = try db.newsDesk()
         #expect(inbox.count == 4)
         #expect(Set(inbox.map(\.kind)) == [.story, .agendaPoint, .quotedItem, .advertisement])
         #expect(Set(inbox.map(\.title)) == ["A story", "Rate decision", "Lindeman", "Vacheron"])
     }
 
-    @Test func placingAnItemTakesItOutOfTheInbox() throws {
+    @Test func filingAnItemTakesItOffTheNewsDesk() throws {
         let db = try PaperDatabase()
         let story = sampleStory()
         try db.save(story, body: "")
         try db.save(sampleStory(slug: "other", title: "Other"), body: "")
 
-        try db.place(story.id, inIssue: "2026-11-20")
-        try db.place(story.id, inIssue: "2026-11-21")   // one item, two issues
-        #expect(try db.inbox().map(\.title) == ["Other"])
+        try db.file(story.id, on: "2026-11-20")
+        #expect(try db.newsDesk().map(\.title) == ["Other"])
     }
 
     @Test func failedSaveLeavesNothingBehind() throws {

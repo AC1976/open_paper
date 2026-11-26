@@ -20,8 +20,8 @@ package struct EditorBar: HTML {
         header(.class("editor-bar")) {
             span(.class("editor-brand")) { "Het Grootboek · Editor" }
             nav(.class("editor-nav")) {
-                a(.href("/editor"), .class("editor-link")) { "Inbox" }
-                a(.href("/editor/issues"), .class("editor-link")) { "Issues" }
+                a(.href("/editor"), .class("editor-link")) { "News desk" }
+                a(.href("/editor/issues"), .class("editor-link")) { "Editions" }
                 form(.method(.post), .action("/editor/logout"), .enctype(.multipartFormData), .class("editor-logout")) {
                     button(.type(.submit), .class("editor-link")) { "Log out" }
                 }
@@ -30,20 +30,27 @@ package struct EditorBar: HTML {
     }
 }
 
-/// `/editor`: upload one item, see what is waiting for review, and the inbox
-/// of saved items that are not in an issue yet.
+/// `/editor`, the news desk: submissions waiting to be filed, then what is
+/// already filed or rejected. Click a title to edit, file or reject it.
 package struct EditorHomePage: HTMLDocument {
-    package let inbox: [InboxEntry]
+    package let desk: [DeskEntry]
     package let waiting: [StagedUpload]
+    package let filed: [DeskEntry]
+    package let rejected: [DeskEntry]
     package let problems: [String]
 
-    package init(inbox: [InboxEntry], waiting: [StagedUpload], problems: [String] = []) {
-        self.inbox = inbox
+    package init(
+        desk: [DeskEntry], waiting: [StagedUpload], filed: [DeskEntry] = [],
+        rejected: [DeskEntry] = [], problems: [String] = []
+    ) {
+        self.desk = desk
         self.waiting = waiting
+        self.filed = filed
+        self.rejected = rejected
         self.problems = problems
     }
 
-    package var title: String { "Editor — Inbox" }
+    package var title: String { "Editor — News desk" }
 
     package var head: some HTML {
         meta(.charset(.utf8))
@@ -56,8 +63,14 @@ package struct EditorHomePage: HTMLDocument {
         EditorBar()
 
         main(.class("editor-main")) {
-            h1 { "Upload" }
+            h1 { "News desk (\(desk.count))" }
+            if desk.isEmpty {
+                p(.class("empty")) { "Nothing waiting. New submissions appear here." }
+            } else {
+                DeskTable(entries: desk, dateHeading: "Received")
+            }
 
+            h2 { "Upload" }
             if !problems.isEmpty {
                 div(.class("problems")) {
                     p { "The file was not uploaded:" }
@@ -66,7 +79,6 @@ package struct EditorHomePage: HTMLDocument {
                     }
                 }
             }
-
             form(.method(.post), .action("/editor/uploads"), .enctype(.multipartFormData), .class("upload-form")) {
                 div(.class("field")) {
                     label(.for("kind")) { "Type" }
@@ -84,7 +96,7 @@ package struct EditorHomePage: HTMLDocument {
             }
 
             if !waiting.isEmpty {
-                h2 { "Waiting for review" }
+                h2 { "Uploads waiting for review" }
                 table(.class("item-table")) {
                     thead {
                         tr { th { "File" }; th { "Type" }; th { "Uploaded" } }
@@ -101,22 +113,38 @@ package struct EditorHomePage: HTMLDocument {
                 }
             }
 
-            h2 { "Inbox" }
-            if inbox.isEmpty {
-                p(.class("empty")) { "Nothing here yet. Saved items that are not in an issue appear in this list." }
-            } else {
-                table(.class("item-table")) {
-                    thead {
-                        tr { th { "Title" }; th { "Type" }; th { "Uploaded" } }
-                    }
-                    tbody {
-                        for entry in inbox {
-                            tr {
-                                td { entry.title }
-                                td { entry.kind.label }
-                                td { EditorDates.display(entry.uploadedAt) }
-                            }
-                        }
+            if !filed.isEmpty {
+                h2 { "Filed (\(filed.count))" }
+                DeskTable(entries: filed, dateHeading: "Publish date")
+            }
+
+            if !rejected.isEmpty {
+                details {
+                    summary { "Rejected (\(rejected.count))" }
+                    DeskTable(entries: rejected, dateHeading: "Received")
+                }
+            }
+        }
+    }
+}
+
+/// Items as a table; filed items show their publish date, others when they came in.
+private struct DeskTable: HTML {
+    let entries: [DeskEntry]
+    let dateHeading: String
+
+    var body: some HTML {
+        table(.class("item-table")) {
+            thead {
+                tr { th { "Title" }; th { "Type" }; th { "Author" }; th { dateHeading } }
+            }
+            tbody {
+                for entry in entries {
+                    tr {
+                        td { a(.href("/editor/items/\(entry.id.uuidString)")) { entry.title } }
+                        td { entry.kind.label }
+                        td { entry.author ?? "—" }
+                        td { entry.publishDate.map(EditorDates.longDay) ?? EditorDates.display(entry.uploadedAt) }
                     }
                 }
             }

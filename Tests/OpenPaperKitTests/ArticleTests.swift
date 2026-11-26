@@ -23,13 +23,6 @@ import Testing
         #expect(anchored.contains("<h2 id=\"fish-chips\">Fish &amp; <em>Chips</em></h2>"))   // the heading's own markup is kept
         #expect(ArticleText.withHeadingAnchors("<p>no headings</p>").headings.isEmpty)
     }
-
-    @Test func datesUseThePapersTimeZone() {
-        let published = ISO8601DateFormatter().date(from: "2026-11-20T05:00:00Z")!      // 06:00 in Amsterdam
-        #expect(ArticleText.dateTime(published) == "November 20, 2026, 6:00 AM")
-        #expect(ArticleText.updatedText(published.addingTimeInterval(1800), after: published) == "6:30 AM")
-        #expect(ArticleText.updatedText(published.addingTimeInterval(86_400), after: published) == "November 21, 2026, 6:00 AM")
-    }
 }
 
 @Suite struct ArticlePageTests {
@@ -46,7 +39,11 @@ import Testing
     }
 
     private func render(_ story: Story, body: String = "<p>Body text.</p>", related: [Story] = []) -> String {
-        ArticlePage(metadata: metadata, story: story, bodyHTML: body, related: related).render()
+        ArticlePage(metadata: metadata, story: story, bodyHTML: body, publishDate: "2026-11-20", related: related).render()
+    }
+
+    @Test func theArticleShowsItsPublishDate() {
+        #expect(render(story(.news)).contains("Friday, November 20, 2026"))
     }
 
     @Test func newsHasARedKickerAndBreakingNewsGetsTheLiveDot() {
@@ -117,30 +114,30 @@ import Testing
 }
 
 @Suite struct PublishedStoryTests {
-    @Test func onlyPublishedStoriesCanBeRead() throws {
+    @Test func onlyStoriesFiledForTodayOrEarlierCanBeRead() throws {
         let db = try PaperDatabase()
-        let live = Story(category: .news, priority: .normal, title: "Live", summary: "s", slug: "live")
-        let draft = Story(category: .news, priority: .normal, title: "Draft", summary: "s", slug: "draft")
-        let inbox = Story(category: .news, priority: .normal, title: "Inbox", summary: "s", slug: "inbox")
-        try db.save(live, body: "Live **body**"); try db.save(draft, body: ""); try db.save(inbox, body: "")
-        try db.place(live.id, inIssue: "2026-11-19")
-        try db.place(draft.id, inIssue: "2026-11-20")
-        try db.publish(issue: "2026-11-19", mode: .prominent)
+        func add(_ slug: String) throws -> Story {
+            let s = Story(category: .news, priority: .normal, title: slug, summary: "s", slug: slug)
+            try db.save(s, body: "Body of \(slug)")
+            return s
+        }
+        let past = try add("past"), today = try add("today"), future = try add("future")
+        let rejected = try add("rejected"), withdrawn = try add("withdrawn")
+        _ = try add("desk")
+        try db.file(past.id, on: "2026-11-19")
+        try db.file(today.id, on: "2026-11-20")
+        try db.file(future.id, on: "2026-11-21")
+        try db.file(rejected.id, on: "2026-11-19"); try db.reject(rejected.id)
+        try db.file(withdrawn.id, on: "2026-11-19"); try db.returnToDesk(withdrawn.id)
 
-        let found = try #require(try db.publishedStory(slug: "live"))
-        #expect(found.story.id == live.id && found.markdown == "Live **body**")
-        #expect(try db.publishedStory(slug: "draft") == nil)
-        #expect(try db.publishedStory(slug: "inbox") == nil)
-        #expect(try db.publishedStory(slug: "nope") == nil)
-    }
-
-    @Test func aStoryStaysReadableWhileItIsInAnyPublishedIssue() throws {
-        let db = try PaperDatabase()
-        let s = Story(category: .opinion, priority: .normal, title: "T", summary: "s", slug: "t")
-        try db.save(s, body: "")
-        try db.place(s.id, inIssue: "2026-11-19"); try db.place(s.id, inIssue: "2026-11-20")
-        try db.publish(issue: "2026-11-19", mode: .prominent)
-        try db.remove(s.id, fromIssue: "2026-11-19")                  // still in the (draft) 20th only
-        #expect(try db.publishedStory(slug: "t") == nil)
+        func read(_ slug: String, on day: String = "2026-11-20") throws -> Bool {
+            try db.publishedStory(slug: slug, asOf: day) != nil
+        }
+        let found = try #require(try db.publishedStory(slug: "past", asOf: "2026-11-20"))
+        #expect(found.story.id == past.id && found.markdown == "Body of past" && found.publishDate == "2026-11-19")
+        #expect(try read("today"))
+        #expect(try !read("future"))
+        #expect(try read("future", on: "2026-11-21"))          // appears by itself when the day arrives
+        for hidden in ["rejected", "withdrawn", "desk", "nope"] { #expect(try !read(hidden), "\(hidden)") }
     }
 }

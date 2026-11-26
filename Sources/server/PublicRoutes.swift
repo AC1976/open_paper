@@ -4,10 +4,11 @@ import Hummingbird
 import HummingbirdElementary
 import OpenPaperKit
 
-/// The paper itself, built from the issues the editor has published.
+/// The paper itself, built from the items filed for each date. Nothing filed
+/// for a later date is visible.
 ///
-///     GET /                 the issue published most recently
-///     GET /issues/{date}    a published issue, e.g. /issues/2026-11-20
+///     GET /                 the newest date, up to today, that has items
+///     GET /issues/{date}    the paper of one date, e.g. /issues/2026-11-20
 ///     GET /sections/{name}  everything published in a section, newest first:
 ///                           news, background, opinion, agenda or quoted
 ///     GET /articles/{slug}  a published story
@@ -16,7 +17,7 @@ func addPublicRoutes(to router: Router<BasicRequestContext>, database: PaperData
     addArticleRoutes(to: router, database: database)
 
     router.get("/") { request, context -> Response in
-        guard let date = try database.latestPublishedIssueDate() else {
+        guard let date = try database.latestIssueDate() else {
             return HTMLResponse { NoIssuePage() }.response(from: request, context: context)
         }
         return frontPage(try database.issue(on: date), request, context)
@@ -24,24 +25,24 @@ func addPublicRoutes(to router: Router<BasicRequestContext>, database: PaperData
 
     router.get("/issues/:date") { request, context -> Response in
         let date = try context.parameters.require("date")
-        guard EditorDates.parseDay(date) != nil else {
-            throw HTTPError(.notFound, message: "There is no issue with that date.")
+        guard EditorDates.isDay(date), date <= EditorDates.today() else {
+            throw HTTPError(.notFound, message: "There is no paper for that date.")
         }
         let issue = try database.issue(on: date)
-        guard issue.isPublished else {
-            throw HTTPError(.notFound, message: "There is no issue with that date.")
+        guard !issue.isEmpty else {
+            throw HTTPError(.notFound, message: "There is no paper for that date.")
         }
         return frontPage(issue, request, context)
     }
 }
 
-/// The page behind every headline: `/articles/{slug}`. Only stories that have
-/// appeared in a published issue can be read.
+/// The page behind every headline: `/articles/{slug}`. Only stories filed for
+/// today or earlier can be read.
 private func addArticleRoutes(to router: Router<BasicRequestContext>, database: PaperDatabase) {
     router.get("/articles/:slug") { request, context -> Response in
         let slug = try context.parameters.require("slug")
-        guard let (story, markdown) = try database.publishedStory(slug: slug),
-              let latest = try database.latestPublishedIssueDate()
+        guard let (story, markdown, publishDate) = try database.publishedStory(slug: slug),
+              let latest = try database.latestIssueDate()
         else {
             throw HTTPError(.notFound, message: "There is no article with that address.")
         }
@@ -52,6 +53,7 @@ private func addArticleRoutes(to router: Router<BasicRequestContext>, database: 
             metadata: try database.issue(on: latest).metadata,
             story: story,
             bodyHTML: markdownToHTML(markdown),
+            publishDate: publishDate,
             related: Array(related)
         )
         return HTMLResponse { page }.response(from: request, context: context)
@@ -68,7 +70,7 @@ private func addSectionRoutes(to router: Router<BasicRequestContext>, database: 
         if section == .frontPage { return .redirect(to: "/") }
 
         // The masthead shows the date and number of the issue on the front page.
-        guard let latest = try database.latestPublishedIssueDate() else {
+        guard let latest = try database.latestIssueDate() else {
             return HTMLResponse { NoIssuePage() }.response(from: request, context: context)
         }
         let items = try database.publishedItems()

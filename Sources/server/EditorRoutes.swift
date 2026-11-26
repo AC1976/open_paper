@@ -9,17 +9,17 @@ private let maxRequestBytes = 8 * 1024 * 1024
 
 /// The editor.
 ///
-///     GET  /editor                                  upload form, waiting uploads, inbox
-///     POST /editor/uploads                          read the file, stage it, redirect to review
-///     ...  /editor/uploads/{id}                     review an upload (see "item pages" below)
-///     GET  /editor/issues                           open an issue (today, or ?date=yyyy-MM-dd)
-///     GET  /editor/issues/{date}                    compose it: inbox on the left, the issue on the right
-///     POST /editor/issues/{date}/place              move the ticked items into the issue
-///     POST /editor/issues/{date}/remove             move them back to the inbox
-///     POST /editor/issues/{date}/mode               set the edition (breaking, prominent, regular)
-///     POST /editor/issues/{date}/publish            publish: the issue becomes the front page
-///     GET  /editor/issues/{date}/preview            the front page of the issue, draft or not
-///     ...  /editor/issues/{date}/items/{id}         edit a saved item (see "item pages" below)
+///     GET  /editor                          news desk: submissions, upload form, filed and rejected
+///     POST /editor/uploads                  read the file, stage it, redirect to review
+///     ...  /editor/uploads/{id}             review an upload (see "item pages" below)
+///     ...  /editor/items/{id}               edit a saved item (see "item pages" below)
+///     POST /editor/items/{id}/file          save it and give it a publish date
+///     POST /editor/items/{id}/reject        reject it
+///     POST /editor/items/{id}/desk          take it back to the news desk
+///     GET  /editor/issues                   open an edition (today, or ?date=yyyy-MM-dd)
+///     GET  /editor/issues/{date}            what is filed for that date, and its layout
+///     POST /editor/issues/{date}/mode       set the layout (breaking, prominent, regular)
+///     GET  /editor/issues/{date}/preview    the paper of that date, future dates included
 ///
 /// Item pages, under both prefixes above:
 ///
@@ -85,20 +85,50 @@ func addEditorRoutes(to router: some RouterMethods<BasicRequestContext>, databas
         )
     }
 
-    // A saved item, opened from an issue page (so Save and Cancel go back to that issue).
-    addItemRoutes(to: router, prefix: "/editor/issues/:date/items/:id", database: database) { context in
-        let date = try issueDate(context)
+    // A saved item. Save and Cancel go back to where it lives now.
+    let savedItem: @Sendable (BasicRequestContext) throws -> ItemTarget = { context in
         let id = try context.parameters.require("id", as: UUID.self)
-        guard let item = try database.item(id) else {
+        guard let item = try database.item(id), let entry = try database.entry(id) else {
             throw HTTPError(.notFound, message: "This item was not found.")
         }
         return ItemTarget(
-            base: "/editor/issues/\(date)/items/\(id.uuidString)",
-            returnTo: "/editor/issues/\(date)",
+            base: "/editor/items/\(id.uuidString)",
+            returnTo: entry.publishDate.map { "/editor/issues/\($0)" } ?? "/editor",
             heading: "Edit \(item.kind.label.lowercased())",
             original: item,
-            stagedID: nil
+            stagedID: nil,
+            filing: Filing(status: entry.status, publishDate: entry.publishDate, suggestedDate: EditorDates.today())
         )
+    }
+    addItemRoutes(to: router, prefix: "/editor/items/:id", database: database, resolve: savedItem)
+
+    // MARK: Filing
+
+    router.post("/editor/items/:id/file") { request, context -> Response in
+        let target = try savedItem(context)
+        let form = try await readForm(request)
+        let date = form.text("publishDate") ?? ""
+        do {
+            // Check the date first, so a bad date saves nothing.
+            guard EditorDates.isDay(date) else { throw SaveError.invalidDate(date) }
+            try save(form, for: target, in: database)
+            try database.file(target.original.id, on: date)
+            return .redirect(to: "/editor/issues/\(date)")
+        } catch let problems as FormProblems {
+            return try render(target, request, context, problems: problems.messages)
+        } catch let error as SaveError {
+            return try render(target, request, context, problems: [error.description])
+        }
+    }
+
+    router.post("/editor/items/:id/reject") { _, context -> Response in
+        try database.reject(try context.parameters.require("id", as: UUID.self))
+        return .redirect(to: "/editor")
+    }
+
+    router.post("/editor/items/:id/desk") { _, context -> Response in
+        try database.returnToDesk(try context.parameters.require("id", as: UUID.self))
+        return .redirect(to: "/editor")
     }
 
     // MARK: Issues
@@ -113,23 +143,13 @@ func addEditorRoutes(to router: some RouterMethods<BasicRequestContext>, databas
 
     router.get("/editor/issues/:date") { request, context -> Response in
         let date = try issueDate(context)
-        return try page(of: try issuePage(database, date: date), request, context)
-    }
-
-    router.post("/editor/issues/:date/place") { request, context -> Response in
-        let date = try issueDate(context)
-        for id in try await readForm(request).values("item").compactMap(UUID.init(uuidString:)) {
-            try database.place(id, inIssue: date)
-        }
-        return done(request, redirectingTo: "/editor/issues/\(date)")
-    }
-
-    router.post("/editor/issues/:date/remove") { request, context -> Response in
-        let date = try issueDate(context)
-        for id in try await readForm(request).values("item").compactMap(UUID.init(uuidString:)) {
-            try database.remove(id, fromIssue: date)
-        }
-        return done(request, redirectingTo: "/editor/issues/\(date)")
+        let edition = EditionPage(
+            date: date,
+            items: try database.filedItems(on: date),
+            mode: try database.mode(ofIssue: date),
+            today: EditorDates.today()
+        )
+        return try page(of: edition, request, context)
     }
 
     router.post("/editor/issues/:date/mode") { request, context -> Response in
@@ -139,18 +159,6 @@ func addEditorRoutes(to router: some RouterMethods<BasicRequestContext>, databas
         }
         try database.setMode(mode, forIssue: date)
         return done(request, redirectingTo: "/editor/issues/\(date)")
-    }
-
-    router.post("/editor/issues/:date/publish") { request, context -> Response in
-        let date = try issueDate(context)
-        let form = try await readForm(request)
-        let mode = try form.text("mode").flatMap(EditionMode.init(rawValue:)) ?? database.settings(ofIssue: date).mode
-
-        guard try database.publish(issue: date, mode: mode) else {
-            let notPublished = try issuePage(database, date: date, problems: ["Put at least one item in the issue first."])
-            return try page(of: notPublished, request, context, status: .unprocessableContent)
-        }
-        return .redirect(to: "/")
     }
 
     router.get("/editor/issues/:date/preview") { request, context -> Response in
@@ -170,6 +178,23 @@ private struct ItemTarget: Sendable {
     let original: ParsedUpload
     /// Set when the item is an upload that has not been saved yet.
     let stagedID: UUID?
+    /// Set when the item is saved, so it can be filed.
+    var filing: Filing? = nil
+}
+
+/// Validates the submitted fields and saves the item.
+private func save(_ form: MultipartForm, for target: ItemTarget, in database: PaperDatabase) throws {
+    switch target.original {
+    case .story(let original, _, _):
+        let (story, body) = try StoryForm.story(from: form, keeping: original)
+        try database.save(story, body: body, discarding: target.stagedID)
+    case .agendaPoint:
+        try database.save(try ItemForm.agendaPoint(from: form), discarding: target.stagedID)
+    case .quotedItem:
+        try database.save(try ItemForm.quotedItem(from: form), discarding: target.stagedID)
+    case .advertisement(let original):
+        try database.save(try ItemForm.advertisement(from: form, keeping: original), discarding: target.stagedID)
+    }
 }
 
 private func addItemRoutes(
@@ -186,17 +211,7 @@ private func addItemRoutes(
         let target = try resolve(context)
         let form = try await readForm(request)
         do {
-            switch target.original {
-            case .story(let original, _, _):
-                let (story, body) = try StoryForm.story(from: form, keeping: original)
-                try database.save(story, body: body, discarding: target.stagedID)
-            case .agendaPoint:
-                try database.save(try ItemForm.agendaPoint(from: form), discarding: target.stagedID)
-            case .quotedItem:
-                try database.save(try ItemForm.quotedItem(from: form), discarding: target.stagedID)
-            case .advertisement(let original):
-                try database.save(try ItemForm.advertisement(from: form, keeping: original), discarding: target.stagedID)
-            }
+            try save(form, for: target, in: database)
             return .redirect(to: target.returnTo)
         } catch let problems as FormProblems {
             return try render(target, request, context, problems: problems.messages)
@@ -216,7 +231,8 @@ private func addItemRoutes(
             return try page(
                 of: ReviewCard(
                     story: story, markdown: body, bodyHTML: markdownToHTML(body),
-                    actionBase: target.base, heading: target.heading, backHref: target.returnTo
+                    actionBase: target.base, heading: target.heading, backHref: target.returnTo,
+                    filing: target.filing
                 ),
                 request, context
             )
@@ -244,7 +260,7 @@ private func render(
         return try page(
             of: ReviewCard(
                 story: story, markdown: markdown, bodyHTML: html, actionBase: target.base,
-                problems: problems, heading: target.heading, backHref: target.returnTo
+                problems: problems, heading: target.heading, backHref: target.returnTo, filing: target.filing
             ),
             request, context, status: status
         )
@@ -252,7 +268,7 @@ private func render(
         return try page(
             of: ItemEditPage(
                 parsed: target.original, actionBase: target.base, heading: target.heading,
-                backHref: target.returnTo, problems: problems
+                backHref: target.returnTo, problems: problems, filing: target.filing
             ),
             request, context, status: status
         )
@@ -269,18 +285,6 @@ private func issueDate(_ context: BasicRequestContext) throws -> String {
     return date
 }
 
-private func issuePage(_ database: PaperDatabase, date: String, problems: [String] = []) throws -> IssuePage {
-    let settings = try database.settings(ofIssue: date)
-    return IssuePage(
-        date: date,
-        inbox: try database.inbox(),
-        placed: try database.placed(inIssue: date),
-        mode: settings.mode,
-        publishedAt: settings.publishedAt,
-        problems: problems
-    )
-}
-
 /// The page script saves in the background (`?fetch=1`) and wants no page back; a plain form post gets a redirect.
 private func done(_ request: Request, redirectingTo path: String) -> Response {
     if request.uri.queryParameters["fetch"] != nil {
@@ -290,7 +294,13 @@ private func done(_ request: Request, redirectingTo path: String) -> Response {
 }
 
 private func homePage(_ database: PaperDatabase, problems: [String] = []) throws -> EditorHomePage {
-    EditorHomePage(inbox: try database.inbox(), waiting: try database.stagedUploads(), problems: problems)
+    EditorHomePage(
+        desk: try database.newsDesk(),
+        waiting: try database.stagedUploads(),
+        filed: try database.filedItems(),
+        rejected: try database.rejectedItems(),
+        problems: problems
+    )
 }
 
 func readForm(_ request: Request) async throws -> MultipartForm {
